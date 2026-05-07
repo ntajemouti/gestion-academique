@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   BookOpen,
@@ -15,8 +15,19 @@ import {
   Bell,
   Menu,
   X,
+  LogOut,
+  ChevronDown,
 } from 'lucide-react';
 import { ROUTE_PATHS } from '@/lib/index';
+import { useAuth } from '@/context/AuthContext';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -39,7 +50,20 @@ const navItems = [
 export function AdminLayout({ children, currentPath }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const navigate  = useNavigate();
+  const { user, logout } = useAuth();
   const activePath = currentPath || location.pathname;
+
+  const initials = user
+    ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}`.toUpperCase()
+    : 'A';
+
+  const fullName = user ? `${user.prenom} ${user.nom}` : 'Administrateur';
+
+  const handleLogout = async () => {
+    await logout();
+    navigate(ROUTE_PATHS.HOME, { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,12 +101,34 @@ export function AdminLayout({ children, currentPath }: AdminLayoutProps) {
                 3
               </span>
             </button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
-                A
-              </div>
-              <span className="hidden sm:inline text-sm font-medium">Admin</span>
-            </div>
+
+            {/* ── User dropdown ─────────────────────────────────── */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted transition-colors focus:outline-none">
+                  <div className="w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold text-sm">
+                    {initials}
+                  </div>
+                  <span className="hidden sm:inline text-sm font-medium">{fullName}</span>
+                  <ChevronDown className="hidden sm:inline w-4 h-4 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuLabel>
+                  <p className="font-semibold text-foreground">{fullName}</p>
+                  <p className="text-xs text-muted-foreground font-normal">{user?.email}</p>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Se déconnecter
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
@@ -113,6 +159,17 @@ export function AdminLayout({ children, currentPath }: AdminLayoutProps) {
             );
           })}
         </nav>
+
+        {/* ── Sidebar bottom: user info + logout ──────────────── */}
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Se déconnecter</span>
+          </button>
+        </div>
       </aside>
 
       {sidebarOpen && (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,11 +29,22 @@ const signupSchema = z.object({
 type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function SignUp() {
-  const { signup, user } = useAuth();
+  const { signup, user, loading } = useAuth();
   const { toast }        = useToast();
   const navigate         = useNavigate();
   const [showPassword, setShowPassword]               = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Already authenticated → redirect to dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      switch (user.role) {
+        case 'Administrateur': navigate(ROUTE_PATHS.ADMIN_DASHBOARD,     { replace: true }); break;
+        case 'Formateur':      navigate(ROUTE_PATHS.FORMATEUR_DASHBOARD, { replace: true }); break;
+        default:               navigate(ROUTE_PATHS.STAGIAIRE_DASHBOARD, { replace: true }); break;
+      }
+    }
+  }, [loading, user, navigate]);
 
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } =
     useForm<SignupFormData>({ resolver: zodResolver(signupSchema) });
@@ -64,6 +75,14 @@ export default function SignUp() {
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">

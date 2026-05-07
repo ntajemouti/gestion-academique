@@ -18,13 +18,25 @@ api.interceptors.request.use((config) => {
 });
 
 // ── Handle 401 globally → redirect to login ──────────────────
+// Exceptions:
+//  1. /auth/me  → AuthContext handles this itself (clears token, stays on page)
+//  2. Public endpoints (filieres, clubs) → fail silently, no redirect
+const PUBLIC_ENDPOINTS = ['/filieres', '/clubs', '/auth/register', '/auth/login'];
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('myista_token');
-      localStorage.removeItem('myista_current_user');
-      window.location.href = '/#/login';
+      const url: string = error.config?.url ?? '';
+
+      const isMeCheck = url.includes('/auth/me');
+      const isPublic  = PUBLIC_ENDPOINTS.some((p) => url.includes(p));
+
+      if (!isMeCheck && !isPublic) {
+        localStorage.removeItem('myista_token');
+        localStorage.removeItem('myista_current_user');
+        window.location.href = '/#/login';
+      }
     }
     return Promise.reject(error);
   }

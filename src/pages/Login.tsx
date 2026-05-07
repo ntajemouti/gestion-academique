@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -20,9 +20,20 @@ type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
-  const { login }   = useAuth();
+  const { login, user, loading } = useAuth();
   const { toast }   = useToast();
   const navigate    = useNavigate();   // ← navigation lives HERE, inside the router tree
+
+  // Already authenticated → redirect to the right dashboard
+  useEffect(() => {
+    if (!loading && user) {
+      switch (user.role) {
+        case 'Administrateur': navigate(ROUTE_PATHS.ADMIN_DASHBOARD,     { replace: true }); break;
+        case 'Formateur':      navigate(ROUTE_PATHS.FORMATEUR_DASHBOARD, { replace: true }); break;
+        default:               navigate(ROUTE_PATHS.STAGIAIRE_DASHBOARD, { replace: true }); break;
+      }
+    }
+  }, [loading, user, navigate]);
 
   const {
     register,
@@ -53,6 +64,14 @@ export default function Login() {
       });
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">

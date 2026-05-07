@@ -17,8 +17,8 @@ export default function Home() {
   const [clubs, setClubs] = useState([]);
 
   useEffect(() => {
-    api.get('/filieres').then(setFilieres);
-    api.get('/clubs').then(setClubs);
+    api.get('/filieres').then(setFilieres).catch(() => {});
+    api.get('/clubs').then(setClubs).catch(() => {});
   }, []);
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();

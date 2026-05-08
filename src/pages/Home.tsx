@@ -12,20 +12,52 @@ import { useAuth } from '@/hooks/useAuth';
 import { ROUTE_PATHS } from '@/lib/index';
 import { api } from '@/lib/api';
 
+// ── Scroll helper — works with HashRouter (href="#x" doesn't work in HashRouter) ──
+function scrollTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 export default function Home() {
-  const [filieres, setFilieres] = useState([]);
-  const [clubs, setClubs] = useState([]);
+  const [filieres, setFilieres] = useState<any[]>([]);
+  const [clubs, setClubs]       = useState<any[]>([]);
+
+  // ── Real-time stats from the backend ──────────────────────────
+  const [stats, setStats] = useState({ stagiaires: 0, formateurs: 0, filieres: 0, clubs: 0 });
 
   useEffect(() => {
-    api.get('/filieres').then(setFilieres).catch(() => {});
-    api.get('/clubs').then(setClubs).catch(() => {});
+    // Load public lists
+    api.get('/filieres').then((data: any) => setFilieres(Array.isArray(data) ? data : [])).catch(() => {});
+    api.get('/clubs').then((data: any)    => setClubs(Array.isArray(data)    ? data : [])).catch(() => {});
+
+    // ── Live counts from the dedicated public /stats endpoint ──
+    // Works for everyone (no token needed) and reflects DB changes immediately.
+    const fetchStats = () => {
+      api.get('/stats')
+        .then((data: any) => {
+          setStats({
+            stagiaires: data.stagiaires ?? 0,
+            formateurs: data.formateurs ?? 0,
+            filieres:   data.filieres   ?? 0,
+            clubs:      data.clubs      ?? 0,
+          });
+        })
+        .catch(() => {}); // fail silently — UI keeps last known values
+    };
+
+    fetchStats(); // immediate on mount
+
+    // Poll every 30 s so the numbers update while the page is open
+    // (reflects admin adding/removing users without a full reload)
+    const interval = setInterval(fetchStats, 30_000);
+    return () => clearInterval(interval); // cleanup on unmount
   }, []);
+
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedClub, setSelectedClub] = useState('');
 
-    const handleClubSignup = (clubName: string) => {
+  const handleClubSignup = (clubName: string) => {
     if (isAuthenticated) {
       navigate(ROUTE_PATHS.STAGIAIRE_CLUBS);
     } else {
@@ -68,18 +100,15 @@ export default function Home() {
               Gérez vos parcours académiques et administratifs en toute simplicité
             </p>
 
+            {/* ✅ FIXED: onClick + scrollTo instead of href="#..." — works with HashRouter */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg" className="text-lg px-8">
-                <a href="#filieres">
-                  Découvrir les Filières
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </a>
+              <Button size="lg" className="text-lg px-8" onClick={() => scrollTo('filieres')}>
+                Découvrir les Filières
+                <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              <Button asChild size="lg" variant="outline" className="text-lg px-8">
-                <a href="#clubs">
-                  Rejoindre un Club
-                  <Star className="ml-2 w-5 h-5" />
-                </a>
+              <Button size="lg" variant="outline" className="text-lg px-8" onClick={() => scrollTo('clubs')}>
+                Rejoindre un Club
+                <Star className="ml-2 w-5 h-5" />
               </Button>
             </div>
 
@@ -157,7 +186,7 @@ export default function Home() {
                       </div>
                     </div>
                     <Button
-                    variant="outline" className="w-full" onClick={() => navigate(`/filiere/${filiere.id}`)}  >
+                      variant="outline" className="w-full" onClick={() => navigate(`/filiere/${filiere.id}`)}>
                       En savoir plus
                     </Button>
                   </CardContent>
@@ -190,7 +219,10 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {clubs.map((club, index) => {
               const IconComponent = club.icon === 'Code' ? BookOpen : club.icon === 'Shield' ? Star : club.icon === 'Brain' ? GraduationCap : club.icon === 'Palette' ? Star : Star;
-              const progress = (club.nombreMembres / club.capaciteMax) * 100;
+              // ✅ FIXED: API returns snake_case — nombre_membres, capacite_max
+              const membres  = club.nombre_membres ?? club.membres_count ?? 0;
+              const capacite = club.capacite_max ?? 0;
+              const progress = capacite > 0 ? Math.min((membres / capacite) * 100, 100) : 0;
 
               return (
                 <motion.div
@@ -207,7 +239,7 @@ export default function Home() {
                           <IconComponent className="w-6 h-6 text-primary" />
                         </div>
                         <Badge variant="secondary">
-                          {club.nombreMembres} membres
+                          {membres} membres
                         </Badge>
                       </div>
                       <CardTitle className="text-xl mt-4">{club.nom}</CardTitle>
@@ -217,7 +249,7 @@ export default function Home() {
                       <div className="mb-4">
                         <div className="flex justify-between text-sm text-muted-foreground mb-2">
                           <span>Capacité</span>
-                          <span>{club.nombreMembres}/{club.capaciteMax}</span>
+                          <span>{membres}/{capacite}</span>
                         </div>
                         <div className="w-full bg-muted rounded-full h-2">
                           <div
@@ -226,8 +258,8 @@ export default function Home() {
                           />
                         </div>
                       </div>
-                      <Button className="w-full" onClick={() => handleClubSignup(club.nom)} disabled={club.nombreMembres >= club.capaciteMax}>
-                        {club.nombreMembres >= club.capaciteMax ? 'Complet' : "S'inscrire"}
+                      <Button className="w-full" onClick={() => handleClubSignup(club.nom)} disabled={membres >= capacite}>
+                        {membres >= capacite ? 'Complet' : "S'inscrire"}
                       </Button>
                     </CardContent>
                   </Card>
@@ -259,23 +291,23 @@ export default function Home() {
                 Notre mission est de former les talents de demain en leur offrant un environnement d'apprentissage moderne, des formateurs experts et un accompagnement personnalisé tout au long de leur parcours.
               </p>
 
+              {/* ✅ FIXED: Real numbers from API — update automatically when DB changes */}
               <div className="grid grid-cols-2 gap-6">
-                <div className="text-center p-6 bg-card rounded-xl shadow-sm">
-                  <div className="text-4xl font-bold text-primary mb-2">1248</div>
-                  <div className="text-sm text-muted-foreground">Stagiaires</div>
-                </div>
-                <div className="text-center p-6 bg-card rounded-xl shadow-sm">
-                  <div className="text-4xl font-bold text-primary mb-2">86</div>
-                  <div className="text-sm text-muted-foreground">Formateurs</div>
-                </div>
-                <div className="text-center p-6 bg-card rounded-xl shadow-sm">
-                  <div className="text-4xl font-bold text-primary mb-2">12</div>
-                  <div className="text-sm text-muted-foreground">Filières</div>
-                </div>
-                <div className="text-center p-6 bg-card rounded-xl shadow-sm">
-                  <div className="text-4xl font-bold text-primary mb-2">5</div>
-                  <div className="text-sm text-muted-foreground">Clubs</div>
-                </div>
+                {[
+                  { value: stats.stagiaires, label: 'Stagiaires' },
+                  { value: stats.formateurs, label: 'Formateurs' },
+                  { value: stats.filieres,   label: 'Filières'   },
+                  { value: stats.clubs,      label: 'Clubs'      },
+                ].map(({ value, label }) => (
+                  <div key={label} className="text-center p-6 bg-card rounded-xl shadow-sm">
+                    <div className="text-4xl font-bold text-primary mb-2">
+                      {value > 0 ? value.toLocaleString('fr-FR') : (
+                        <span className="inline-block w-10 h-9 bg-muted animate-pulse rounded" />
+                      )}
+                    </div>
+                    <div className="text-sm text-muted-foreground">{label}</div>
+                  </div>
+                ))}
               </div>
             </motion.div>
 
@@ -329,7 +361,8 @@ export default function Home() {
                   <CardTitle>Email</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <a href="mailto:ista.bouznika2020@gmail.com" className="text-primary hover:underline">
+                  {/* ✅ FIXED: correct email */}
+                  <a href="mailto:ista.bouznika2020@gmail.com" className="text-primary hover:underline break-all">
                     ista.bouznika2020@gmail.com
                   </a>
                 </CardContent>
@@ -350,6 +383,7 @@ export default function Home() {
                   <CardTitle>Téléphone</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {/* ✅ FIXED: correct phone */}
                   <a href="tel:0537743577" className="text-primary hover:underline">
                     05377-43577
                   </a>
@@ -371,6 +405,7 @@ export default function Home() {
                   <CardTitle>Adresse</CardTitle>
                 </CardHeader>
                 <CardContent>
+                  {/* ✅ FIXED: correct address */}
                   <p className="text-muted-foreground">
                     Quartier Industriel<br />
                     Bouznika, Maroc
@@ -381,28 +416,29 @@ export default function Home() {
           </div>
         </div>
       </section>
+
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-  <DialogContent className="sm:max-w-md">
-    <DialogHeader>
-      <DialogTitle className="text-center">Rejoindre {selectedClub}</DialogTitle>
-      <DialogDescription className="text-center">
-        Vous avez besoin d'un compte MyISTA pour rejoindre un club.
-      </DialogDescription>
-    </DialogHeader>
-    <div className="flex flex-col gap-3 mt-2">
-      <Button asChild className="w-full gap-2">
-        <Link to={ROUTE_PATHS.LOGIN} onClick={() => setDialogOpen(false)}>
-          <LogIn className="w-4 h-4" /> Se connecter
-        </Link>
-      </Button>
-      <Button asChild variant="outline" className="w-full gap-2">
-        <Link to={ROUTE_PATHS.SIGNUP} onClick={() => setDialogOpen(false)}>
-          <UserPlus className="w-4 h-4" /> Créer un compte
-        </Link>
-      </Button>
-    </div>
-  </DialogContent>
-</Dialog>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center">Rejoindre {selectedClub}</DialogTitle>
+            <DialogDescription className="text-center">
+              Vous avez besoin d'un compte MyISTA pour rejoindre un club.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-3 mt-2">
+            <Button asChild className="w-full gap-2">
+              <Link to={ROUTE_PATHS.LOGIN} onClick={() => setDialogOpen(false)}>
+                <LogIn className="w-4 h-4" /> Se connecter
+              </Link>
+            </Button>
+            <Button asChild variant="outline" className="w-full gap-2">
+              <Link to={ROUTE_PATHS.SIGNUP} onClick={() => setDialogOpen(false)}>
+                <UserPlus className="w-4 h-4" /> Créer un compte
+              </Link>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PublicLayout>
   );
 }

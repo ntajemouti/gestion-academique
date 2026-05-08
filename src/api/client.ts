@@ -8,7 +8,7 @@ const api = axios.create({
   },
 });
 
-// ── Attach Bearer token to every request ─────────────────────
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('myista_token');
   if (token) {
@@ -17,11 +17,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ── Handle 401 globally → redirect to login ──────────────────
-// Exceptions:
-//  1. /auth/me  → AuthContext handles this itself (clears token, stays on page)
-//  2. Public endpoints (filieres, clubs) → fail silently, no redirect
-const PUBLIC_ENDPOINTS = ['/filieres', '/clubs', '/auth/register', '/auth/login'];
+const PUBLIC_ENDPOINTS = ['/filieres', '/clubs', '/stats', '/dashboard', '/auth/register', '/auth/login'];
 
 api.interceptors.response.use(
   (response) => response,

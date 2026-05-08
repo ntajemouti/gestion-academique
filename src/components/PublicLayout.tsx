@@ -19,6 +19,11 @@ interface PublicLayoutProps {
   children: React.ReactNode;
 }
 
+// ✅ Scroll helper — works with HashRouter
+function scrollTo(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 export function PublicHeader() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -31,11 +36,11 @@ export function PublicHeader() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navItems = [
-    { label: 'Accueil',    path: ROUTE_PATHS.HOME },
-    { label: 'À propos',   path: '#about' },
-    { label: 'Formations', path: '#filieres' },
-    { label: 'Clubs',      path: '#clubs' },
+  const navItems: Array<{ label: string; path: string | null; anchor: string | null }> = [
+    { label: 'Accueil',    path: ROUTE_PATHS.HOME, anchor: null },
+    { label: 'À propos',   path: null,              anchor: 'about' },
+    { label: 'Formations', path: null,              anchor: 'filieres' },
+    { label: 'Clubs',      path: null,              anchor: 'clubs' },
   ];
 
   const initials = user
@@ -45,27 +50,25 @@ export function PublicHeader() {
   const fullName = user ? `${user.prenom} ${user.nom}` : '';
 
   const dashboardPath =
-    user?.role === 'Administrateur'
-      ? ROUTE_PATHS.ADMIN_DASHBOARD
-      : user?.role === 'Formateur'
-      ? ROUTE_PATHS.FORMATEUR_DASHBOARD
-      : ROUTE_PATHS.STAGIAIRE_DASHBOARD;
+    user?.role === 'Administrateur' ? ROUTE_PATHS.ADMIN_DASHBOARD
+    : user?.role === 'Formateur'    ? ROUTE_PATHS.FORMATEUR_DASHBOARD
+    : ROUTE_PATHS.STAGIAIRE_DASHBOARD;
 
   const roleBadgeClass =
-    user?.role === 'Administrateur'
-      ? 'bg-red-100 text-red-800'
-      : user?.role === 'Formateur'
-      ? 'bg-green-100 text-green-800'
-      : 'bg-primary/10 text-primary';
+    user?.role === 'Administrateur' ? 'bg-red-100 text-red-800'
+    : user?.role === 'Formateur'    ? 'bg-green-100 text-green-800'
+    : 'bg-primary/10 text-primary';
 
   const handleLogout = async () => {
     await logout();
-    navigate(ROUTE_PATHS.LOGIN, { replace: true });
+    navigate(ROUTE_PATHS.HOME, { replace: true });
   };
 
-  // ── Right-side slot: auth buttons OR user dropdown ────────────
+  // ── Right-side slot: spinner → user dropdown OR login buttons ─
   const AuthSlot = () => {
-    if (loading) return <div className="w-24 h-8 bg-muted animate-pulse rounded-lg" />;
+    if (loading) {
+      return <div className="w-24 h-8 bg-muted animate-pulse rounded-lg" />;
+    }
 
     if (user) {
       return (
@@ -120,7 +123,7 @@ export function PublicHeader() {
     );
   };
 
-  // ── Mobile auth slot ──────────────────────────────────────────
+  // ── Mobile auth slot ───────────────────────────────────────────
   const MobileAuthSlot = () => {
     if (loading) return null;
 
@@ -188,29 +191,27 @@ export function PublicHeader() {
           </Link>
 
           <nav className="hidden md:flex items-center gap-8">
-            {navItems.map((item) =>
-              item.path.startsWith('#') ? (
-                <a
-                  key={item.path}
-                  href={item.path}
-                  className="text-foreground hover:text-primary transition-colors font-medium"
+            {navItems.map((item) => (
+              item.anchor ? (
+                <button
+                  key={item.label}
+                  onClick={() => scrollTo(item.anchor!)}
+                  className="text-foreground hover:text-primary transition-colors font-medium bg-transparent border-none cursor-pointer"
                 >
                   {item.label}
-                </a>
+                </button>
               ) : (
                 <NavLink
-                  key={item.path}
-                  to={item.path}
+                  key={item.label}
+                  to={item.path!}
                   className={({ isActive }) =>
-                    `text-foreground hover:text-primary transition-colors font-medium ${
-                      isActive ? 'text-primary' : ''
-                    }`
+                    `text-foreground hover:text-primary transition-colors font-medium ${isActive ? 'text-primary' : ''}`
                   }
                 >
                   {item.label}
                 </NavLink>
               )
-            )}
+            ))}
           </nav>
 
           {/* Desktop auth slot */}
@@ -230,31 +231,28 @@ export function PublicHeader() {
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-border">
             <nav className="flex flex-col gap-4">
-              {navItems.map((item) =>
-                item.path.startsWith('#') ? (
-                  <a
-                    key={item.path}
-                    href={item.path}
-                    className="text-foreground hover:text-primary transition-colors font-medium"
-                    onClick={() => setIsMobileMenuOpen(false)}
+              {navItems.map((item) => (
+                item.anchor ? (
+                  <button
+                    key={item.label}
+                    onClick={() => { scrollTo(item.anchor!); setIsMobileMenuOpen(false); }}
+                    className="text-foreground hover:text-primary transition-colors font-medium text-left bg-transparent border-none cursor-pointer"
                   >
                     {item.label}
-                  </a>
+                  </button>
                 ) : (
                   <NavLink
-                    key={item.path}
-                    to={item.path}
+                    key={item.label}
+                    to={item.path!}
                     className={({ isActive }) =>
-                      `text-foreground hover:text-primary transition-colors font-medium ${
-                        isActive ? 'text-primary' : ''
-                      }`
+                      `text-foreground hover:text-primary transition-colors font-medium ${isActive ? 'text-primary' : ''}`
                     }
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     {item.label}
                   </NavLink>
                 )
-              )}
+              ))}
               <MobileAuthSlot />
             </nav>
           </div>
@@ -283,19 +281,22 @@ export function PublicFooter() {
             <h3 className="font-semibold text-foreground mb-4">Liens rapides</h3>
             <ul className="space-y-2">
               <li>
-                <a href="#filieres" className="text-muted-foreground hover:text-primary transition-colors">
+                <button onClick={() => scrollTo('filieres')}
+                  className="text-muted-foreground hover:text-primary transition-colors bg-transparent border-none cursor-pointer">
                   Formations
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#clubs" className="text-muted-foreground hover:text-primary transition-colors">
+                <button onClick={() => scrollTo('clubs')}
+                  className="text-muted-foreground hover:text-primary transition-colors bg-transparent border-none cursor-pointer">
                   Clubs
-                </a>
+                </button>
               </li>
               <li>
-                <a href="#contact" className="text-muted-foreground hover:text-primary transition-colors">
+                <button onClick={() => scrollTo('contact')}
+                  className="text-muted-foreground hover:text-primary transition-colors bg-transparent border-none cursor-pointer">
                   Contact
-                </a>
+                </button>
               </li>
             </ul>
           </div>
@@ -303,9 +304,17 @@ export function PublicFooter() {
           <div>
             <h3 className="font-semibold text-foreground mb-4">Contact</h3>
             <ul className="space-y-2 text-muted-foreground">
-              <li>Email: contact@myista.ma</li>
-              <li>Tél: +212 5XX-XXXXXX</li>
-              <li>Adresse: Casablanca, Maroc</li>
+              <li>
+                <a href="mailto:ista.bouznika2020@gmail.com" className="hover:text-primary transition-colors">
+                  Email: ista.bouznika2020@gmail.com
+                </a>
+              </li>
+              <li>
+                <a href="tel:0537743577" className="hover:text-primary transition-colors">
+                  Tél: 05377-43577
+                </a>
+              </li>
+              <li>Adresse: Quartier Industriel, Bouznika, Maroc</li>
             </ul>
           </div>
         </div>

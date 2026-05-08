@@ -83,23 +83,28 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        // Fetch all data in parallel and compute stats client-side
-        const [usersRes, filieresRes, groupesRes, modulesRes, demandesRes] = await Promise.all([
-          api.get('/users/formateurs'),
+        // Fetch all data in parallel
+        // /api/users returns paginated response with ALL roles
+        const [allUsersRes, filieresRes, groupesRes, modulesRes, demandesRes] = await Promise.all([
+          api.get('/users', { params: { per_page: 500 } }),
           api.get('/filieres'),
           api.get('/groupes'),
           api.get('/modules'),
-          api.get('/demandes').catch(() => ({ data: [] as any[] })), // optional endpoint
+          api.get('/demandes', { params: { per_page: 500 } }).catch(() => ({ data: { data: [] as any[] } })),
         ]);
 
-        const users: any[]    = usersRes.data?.data    ?? usersRes.data    ?? [];
-        const filieres: any[] = filieresRes.data?.data ?? filieresRes.data ?? [];
-        const groupes: any[]  = groupesRes.data?.data  ?? groupesRes.data  ?? [];
-        const modules: any[]  = modulesRes.data?.data  ?? modulesRes.data  ?? [];
-        const demandes: any[] = demandesRes.data?.data ?? demandesRes.data ?? [];
+        // /api/users returns a Laravel paginator: { data: [...], total: N, ... }
+        const users: any[]    = allUsersRes.data?.data    ?? allUsersRes.data    ?? [];
+        const filieres: any[] = filieresRes.data?.data    ?? filieresRes.data    ?? [];
+        const groupes: any[]  = groupesRes.data?.data     ?? groupesRes.data     ?? [];
+        const modules: any[]  = modulesRes.data?.data     ?? modulesRes.data     ?? [];
+        const demandes: any[] = demandesRes.data?.data    ?? demandesRes.data    ?? [];
+
+        // Use paginator total so we never under-count across pages
+        const totalUsers = allUsersRes.data?.total ?? users.length;
 
         setStats({
-          total_users:           users.length,
+          total_users:           totalUsers,
           total_stagiaires:      users.filter((u: any) => u.role === 'Stagiaire').length,
           total_formateurs:      users.filter((u: any) => u.role === 'Formateur').length,
           total_administrateurs: users.filter((u: any) => u.role === 'Administrateur').length,
@@ -242,9 +247,11 @@ export default function AdminDashboard() {
                             <td className="py-3 px-2 text-muted-foreground">{user.email}</td>
                             <td className="py-3 px-2"><RoleBadge role={user.role} /></td>
                             <td className="py-3 px-2 text-muted-foreground">
-                              {new Date(user.created_at).toLocaleDateString('fr-FR', {
-                                day: '2-digit', month: 'short', year: 'numeric',
-                              })}
+                              {user.created_at
+                                ? new Date(user.created_at).toLocaleDateString('fr-FR', {
+                                    day: '2-digit', month: 'short', year: 'numeric',
+                                  })
+                                : '—'}
                             </td>
                           </tr>
                         ))}

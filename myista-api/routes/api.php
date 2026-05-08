@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\AbsenceController;
 use App\Http\Controllers\Api\NoteController;
 use App\Http\Controllers\Api\EmploiDuTempsController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\StatsController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +30,7 @@ Route::get('filieres',           [FiliereController::class, 'index']);
 Route::get('filieres/{filiere}', [FiliereController::class, 'show']);
 Route::get('clubs',              [ClubController::class, 'publicIndex']);   // ← public version (no is_member)
 Route::get('clubs/{club}',       [ClubController::class, 'publicShow']);    // ← public version
+Route::get('stats',              [StatsController::class, 'public']);   // ← public live counts (no auth)
 
 /*
 |--------------------------------------------------------------------------

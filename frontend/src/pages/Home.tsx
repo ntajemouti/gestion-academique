@@ -25,9 +25,16 @@ export default function Home() {
   const [stats, setStats] = useState({ stagiaires: 0, formateurs: 0, filieres: 0, clubs: 0 });
 
   useEffect(() => {
-    // Load public lists
-    api.get('/filieres').then((data: any) => setFilieres(Array.isArray(data) ? data : [])).catch(() => {});
-    api.get('/clubs').then((data: any)    => setClubs(Array.isArray(data)    ? data : [])).catch(() => {});
+    // Load public lists — handle both plain arrays and paginated { data: [] } responses
+    api.get('/filieres').then((res: any) => {
+      const list = Array.isArray(res) ? res : res?.data ?? res ?? [];
+      setFilieres(list);
+    }).catch(() => {});
+
+    api.get('/clubs', { params: { statut: 'Actif', per_page: 100 } }).then((res: any) => {
+      const list = Array.isArray(res) ? res : res?.data ?? res ?? [];
+      setClubs(list);
+    }).catch(() => {});
 
     // ── Live counts from the dedicated public /stats endpoint ──
     // Works for everyone (no token needed) and reflects DB changes immediately.

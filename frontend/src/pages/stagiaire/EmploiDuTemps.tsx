@@ -1,15 +1,26 @@
+import { useEffect, useState } from 'react';
 import { UserLayout } from '@/components/UserLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { mockEmploisDuTemps, mockModules, mockUsers, mockFilieres } from '@/data/index';
+import { emploisApi } from '@/api/services';
 import { ROUTE_PATHS } from '@/lib/index';
-import { Calendar, Clock, MapPin, User } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, Loader2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'] as const;
-const HEURES = ['08:00', '10:00', '12:00', '14:00', '16:00', '18:00'];
+const HEURES = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
 
-function getCurrentDay(): string {
+interface Creneau {
+  id: number;
+  jour: string;
+  heure_debut: string;
+  heure_fin: string;
+  salle: string;
+  module: { id: number; code: string; nom: string; filiere?: { color?: string } } | null;
+  formateur: { id: number; prenom: string; nom: string } | null;
+}
+
+function getCurrentDay() {
   const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
   return days[new Date().getDay()];
 }
@@ -17,21 +28,34 @@ function getCurrentDay(): string {
 export default function StagiaireEmploiDuTemps() {
   const { user } = useAuth();
   const currentDay = getCurrentDay();
+  const [schedule, setSchedule] = useState<Record<string, Creneau[]>>({});
+  const [loading, setLoading] = useState(true);
 
-  const userSchedule = mockEmploisDuTemps.filter(
-    (edt) => edt.groupeId === user?.groupeId
-  );
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data } = await emploisApi.list();
+        // API returns { Lundi: [...], Mardi: [...], ... }
+        setSchedule(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
-  const getModuleInfo = (moduleId: string) => {
-    const module = mockModules.find((m) => m.id === moduleId);
-    const formateur = mockUsers.find((u) => u.id === module?.formateurId);
-    const filiere = mockFilieres.find((f) => f.id === module?.filiereId);
-    return { module, formateur, filiere };
-  };
+  const getSlot = (jour: string, heure: string) =>
+    (schedule[jour] ?? []).find(c => c.heure_debut === heure);
 
-  const getScheduleForDay = (jour: string) => {
-    return userSchedule.filter((edt) => edt.jour === jour);
-  };
+  if (loading) {
+    return (
+      <UserLayout currentPath={ROUTE_PATHS.STAGIAIRE_EMPLOI_DU_TEMPS}>
+        <div className="flex justify-center py-20"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+      </UserLayout>
+    );
+  }
 
   return (
     <UserLayout currentPath={ROUTE_PATHS.STAGIAIRE_EMPLOI_DU_TEMPS}>
@@ -49,13 +73,12 @@ export default function StagiaireEmploiDuTemps() {
           </Badge>
         </div>
 
+        {/* Desktop grid */}
         <div className="hidden lg:block">
           <Card className="overflow-hidden">
             <div className="grid grid-cols-7 border-b">
-              <div className="p-4 bg-muted/30 border-r font-semibold text-sm">
-                Horaires
-              </div>
-              {JOURS.map((jour) => (
+              <div className="p-4 bg-muted/30 border-r font-semibold text-sm">Horaires</div>
+              {JOURS.map(jour => (
                 <div
                   key={jour}
                   className={`p-4 text-center font-semibold text-sm border-r last:border-r-0 ${
@@ -63,72 +86,34 @@ export default function StagiaireEmploiDuTemps() {
                   }`}
                 >
                   {jour}
-                  {jour === currentDay && (
-                    <Badge variant="default" className="ml-2 text-xs">
-                      Aujourd'hui
-                    </Badge>
-                  )}
+                  {jour === currentDay && <Badge variant="default" className="ml-2 text-xs">Aujourd'hui</Badge>}
                 </div>
               ))}
             </div>
-
             <div className="divide-y">
-              {HEURES.map((heure, idx) => (
-                <div key={heure} className="grid grid-cols-7 min-h-[100px]">
+              {HEURES.slice(0, -1).map((heure, idx) => (
+                <div key={heure} className="grid grid-cols-7 min-h-[90px]">
                   <div className="p-4 bg-muted/10 border-r flex items-center justify-center">
                     <div className="text-sm font-medium text-muted-foreground">
                       <Clock className="w-4 h-4 inline mr-1" />
                       {heure}
                     </div>
                   </div>
-                  {JOURS.map((jour) => {
-                    const daySchedule = getScheduleForDay(jour);
-                    const slot = daySchedule.find(
-                      (s) => s.heureDebut === heure
-                    );
-
-                    if (!slot) {
-                      return (
-                        <div
-                          key={`${jour}-${heure}`}
-                          className={`p-2 border-r last:border-r-0 ${
-                            jour === currentDay ? 'bg-primary/5' : ''
-                          }`}
-                        />
-                      );
-                    }
-
-                    const { module, formateur, filiere } = getModuleInfo(slot.moduleId);
-
+                  {JOURS.map(jour => {
+                    const slot = getSlot(jour, heure);
+                    const color = slot?.module?.filiere?.color ?? '#64748b';
                     return (
-                      <div
-                        key={`${jour}-${heure}`}
-                        className={`p-2 border-r last:border-r-0 ${
-                          jour === currentDay ? 'bg-primary/5' : ''
-                        }`}
-                      >
-                        <div
-                          className="h-full rounded-lg p-3 text-white shadow-sm transition-all hover:shadow-md"
-                          style={{ backgroundColor: filiere?.color || '#64748b' }}
-                        >
-                          <div className="font-semibold text-sm mb-1">
-                            {module?.nom || 'Module'}
-                          </div>
-                          <div className="text-xs opacity-90 space-y-1">
-                            <div className="flex items-center">
-                              <User className="w-3 h-3 mr-1" />
-                              {formateur?.prenom} {formateur?.nom}
-                            </div>
-                            <div className="flex items-center">
-                              <MapPin className="w-3 h-3 mr-1" />
-                              {slot.salle}
-                            </div>
-                            <div className="flex items-center">
-                              <Clock className="w-3 h-3 mr-1" />
-                              {slot.heureDebut} - {slot.heureFin}
+                      <div key={`${jour}-${heure}`} className={`p-2 border-r last:border-r-0 ${jour === currentDay ? 'bg-primary/5' : ''}`}>
+                        {slot ? (
+                          <div className="h-full rounded-lg p-3 text-white shadow-sm transition-all hover:shadow-md" style={{ backgroundColor: color }}>
+                            <div className="font-semibold text-sm mb-1">{slot.module?.nom ?? 'Module'}</div>
+                            <div className="text-xs opacity-90 space-y-1">
+                              <div className="flex items-center"><User className="w-3 h-3 mr-1" />{slot.formateur?.prenom} {slot.formateur?.nom}</div>
+                              <div className="flex items-center"><MapPin className="w-3 h-3 mr-1" />{slot.salle}</div>
+                              <div className="flex items-center"><Clock className="w-3 h-3 mr-1" />{slot.heure_debut} - {slot.heure_fin}</div>
                             </div>
                           </div>
-                        </div>
+                        ) : null}
                       </div>
                     );
                   })}
@@ -138,56 +123,32 @@ export default function StagiaireEmploiDuTemps() {
           </Card>
         </div>
 
+        {/* Mobile cards */}
         <div className="lg:hidden space-y-4">
-          {JOURS.map((jour) => {
-            const daySchedule = getScheduleForDay(jour);
+          {JOURS.map(jour => {
+            const daySchedule = schedule[jour] ?? [];
             const isToday = jour === currentDay;
-
             return (
               <Card key={jour} className={isToday ? 'border-primary' : ''}>
-                <div
-                  className={`p-4 border-b font-semibold ${
-                    isToday ? 'bg-primary text-primary-foreground' : 'bg-muted/30'
-                  }`}
-                >
+                <div className={`p-4 border-b font-semibold ${isToday ? 'bg-primary text-primary-foreground' : 'bg-muted/30'}`}>
                   <div className="flex items-center justify-between">
                     <span>{jour}</span>
-                    {isToday && (
-                      <Badge variant="secondary" className="text-xs">
-                        Aujourd'hui
-                      </Badge>
-                    )}
+                    {isToday && <Badge variant="secondary" className="text-xs">Aujourd'hui</Badge>}
                   </div>
                 </div>
                 <div className="p-4 space-y-3">
                   {daySchedule.length === 0 ? (
-                    <p className="text-muted-foreground text-sm text-center py-4">
-                      Aucun cours prévu
-                    </p>
+                    <p className="text-muted-foreground text-sm text-center py-4">Aucun cours prévu</p>
                   ) : (
-                    daySchedule.map((slot) => {
-                      const { module, formateur, filiere } = getModuleInfo(slot.moduleId);
-
+                    daySchedule.map(slot => {
+                      const color = slot.module?.filiere?.color ?? '#64748b';
                       return (
-                        <div
-                          key={slot.id}
-                          className="rounded-lg p-4 text-white shadow-sm"
-                          style={{ backgroundColor: filiere?.color || '#64748b' }}
-                        >
-                          <div className="font-semibold mb-2">{module?.nom || 'Module'}</div>
+                        <div key={slot.id} className="rounded-lg p-4 text-white shadow-sm" style={{ backgroundColor: color }}>
+                          <div className="font-semibold mb-2">{slot.module?.nom ?? 'Module'}</div>
                           <div className="text-sm opacity-90 space-y-1">
-                            <div className="flex items-center">
-                              <Clock className="w-4 h-4 mr-2" />
-                              {slot.heureDebut} - {slot.heureFin}
-                            </div>
-                            <div className="flex items-center">
-                              <User className="w-4 h-4 mr-2" />
-                              {formateur?.prenom} {formateur?.nom}
-                            </div>
-                            <div className="flex items-center">
-                              <MapPin className="w-4 h-4 mr-2" />
-                              {slot.salle}
-                            </div>
+                            <div className="flex items-center"><Clock className="w-4 h-4 mr-2" />{slot.heure_debut} - {slot.heure_fin}</div>
+                            {slot.formateur && <div className="flex items-center"><User className="w-4 h-4 mr-2" />{slot.formateur.prenom} {slot.formateur.nom}</div>}
+                            <div className="flex items-center"><MapPin className="w-4 h-4 mr-2" />{slot.salle}</div>
                           </div>
                         </div>
                       );

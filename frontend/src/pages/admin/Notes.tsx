@@ -99,8 +99,16 @@ export default function AdminNotes() {
           api.get('/users/stagiaires'),   
           api.get('/users/formateurs'),
         ]);
-        setStagiaires(stgRes.data ?? []);
-        setFormateurs(fmtRes.data ?? []);
+        const notesData  = notesRes.data?.data ?? notesRes.data ?? [];
+        const filData    = filRes.data?.data   ?? filRes.data   ?? [];
+        const modData    = modRes.data?.data   ?? modRes.data   ?? [];
+        const grpData    = grpRes.data?.data   ?? grpRes.data   ?? [];
+        setNotes(Array.isArray(notesData) ? notesData : []);
+        setFilieres(Array.isArray(filData) ? filData : []);
+        setModules(Array.isArray(modData) ? modData : []);
+        setGroupes(Array.isArray(grpData) ? grpData : []);
+        setStagiaires(Array.isArray(stgRes.data) ? stgRes.data : stgRes.data?.data ?? []);
+        setFormateurs(Array.isArray(fmtRes.data) ? fmtRes.data : fmtRes.data?.data ?? []);
       } catch (err: any) {
         toast({
           title: 'Erreur de chargement',

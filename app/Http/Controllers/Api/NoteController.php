@@ -18,6 +18,7 @@ class NoteController extends Controller
             'stagiaire:id,prenom,nom,matricule,groupe_id',
             'module:id,code,nom,coefficient',
             'formateur:id,prenom,nom',
+            'groupe:id,nom',
         ]);
 
         $auth = $request->user();
@@ -28,12 +29,10 @@ class NoteController extends Controller
             $query->where('formateur_id', $auth->id);
         }
 
-        if ($request->filled('stagiaire_id'))   $query->where('stagiaire_id', $request->stagiaire_id);
-        if ($request->filled('module_id'))      $query->where('module_id', $request->module_id);
-        if ($request->filled('type_evaluation'))$query->where('type_evaluation', $request->type_evaluation);
-        if ($request->filled('groupe_id')) {
-            $query->whereHas('stagiaire', fn($q) => $q->where('groupe_id', $request->groupe_id));
-        }
+        if ($request->filled('stagiaire_id'))    $query->where('stagiaire_id', $request->stagiaire_id);
+        if ($request->filled('module_id'))       $query->where('module_id', $request->module_id);
+        if ($request->filled('groupe_id'))       $query->where('groupe_id', $request->groupe_id);
+        if ($request->filled('type_evaluation')) $query->where('type_evaluation', $request->type_evaluation);
 
         return response()->json(
             $query->orderByDesc('date_evaluation')->paginate($request->input('per_page', 30))
@@ -55,7 +54,7 @@ class NoteController extends Controller
         // Verify stagiaire
         $stagiaire = User::findOrFail($data['stagiaire_id']);
         if (! $stagiaire->isStagiaire()) {
-            return response()->json(['message' => 'L\'utilisateur ciblé n\'est pas un stagiaire.'], 422);
+            return response()->json(['message' => "L'utilisateur ciblé n'est pas un stagiaire."], 422);
         }
 
         // Scoping for formateurs
@@ -68,11 +67,17 @@ class NoteController extends Controller
 
         $data['formateur_id'] = $auth->isFormateur() ? $auth->id : ($request->input('formateur_id', $auth->id));
         $data['coefficient']  = $module->coefficient;
+        $data['groupe_id']    = $stagiaire->groupe_id; // auto-populate from stagiaire
 
         $note = Note::create($data);
 
         return response()->json(
-            $note->load(['stagiaire:id,prenom,nom,matricule', 'module:id,code,nom', 'formateur:id,prenom,nom']),
+            $note->load([
+                'stagiaire:id,prenom,nom,matricule',
+                'module:id,code,nom',
+                'formateur:id,prenom,nom',
+                'groupe:id,nom',
+            ]),
             201
         );
     }
@@ -87,7 +92,12 @@ class NoteController extends Controller
         }
 
         return response()->json(
-            $note->load(['stagiaire:id,prenom,nom,matricule', 'module:id,code,nom,coefficient', 'formateur:id,prenom,nom'])
+            $note->load([
+                'stagiaire:id,prenom,nom,matricule',
+                'module:id,code,nom,coefficient',
+                'formateur:id,prenom,nom',
+                'groupe:id,nom',
+            ])
         );
     }
 
@@ -109,7 +119,7 @@ class NoteController extends Controller
 
         $note->update($data);
 
-        return response()->json($note->load(['stagiaire:id,prenom,nom', 'module:id,code,nom']));
+        return response()->json($note->load(['stagiaire:id,prenom,nom', 'module:id,code,nom', 'groupe:id,nom']));
     }
 
     // DELETE /api/notes/{id}  [formateur, admin]
@@ -131,7 +141,7 @@ class NoteController extends Controller
     {
         $request->validate(['stagiaire_id' => 'required|exists:users,id']);
 
-        $auth      = $request->user();
+        $auth        = $request->user();
         $stagiaireId = $request->stagiaire_id;
 
         if ($auth->isStagiaire() && $auth->id != $stagiaireId) {
@@ -143,10 +153,10 @@ class NoteController extends Controller
                      ->get();
 
         $parModule = $notes->groupBy('module_id')->map(function ($items) {
-            $module          = $items->first()->module;
-            $totalPondere    = $items->sum(fn($n) => $n->note * $n->coefficient);
-            $totalCoeff      = $items->sum('coefficient');
-            $moyenne         = $totalCoeff > 0 ? $totalPondere / $totalCoeff : 0;
+            $module       = $items->first()->module;
+            $totalPondere = $items->sum(fn($n) => $n->note * $n->coefficient);
+            $totalCoeff   = $items->sum('coefficient');
+            $moyenne      = $totalCoeff > 0 ? $totalPondere / $totalCoeff : 0;
 
             return [
                 'module'      => $module?->nom,
@@ -161,10 +171,10 @@ class NoteController extends Controller
         $globalMoyenne = $parModule->avg('moyenne');
 
         return response()->json([
-            'stagiaire_id'    => $stagiaireId,
-            'par_module'      => $parModule,
-            'moyenne_generale'=> round($globalMoyenne, 2),
-            'mention'         => $this->getMention($globalMoyenne),
+            'stagiaire_id'     => $stagiaireId,
+            'par_module'       => $parModule,
+            'moyenne_generale' => round($globalMoyenne, 2),
+            'mention'          => $this->getMention($globalMoyenne),
         ]);
     }
 

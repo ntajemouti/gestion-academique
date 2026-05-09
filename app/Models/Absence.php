@@ -14,6 +14,8 @@ class Absence extends Model
         'stagiaire_id',
         'module_id',
         'formateur_id',
+        'seance_id',
+        'groupe_id',
         'date',
         'justifiee',
         'motif',
@@ -41,5 +43,15 @@ class Absence extends Model
     public function formateur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'formateur_id');
+    }
+
+    public function seance(): BelongsTo
+    {
+        return $this->belongsTo(EmploiDuTemps::class, 'seance_id');
+    }
+
+    public function groupe(): BelongsTo
+    {
+        return $this->belongsTo(Groupe::class);
     }
 }

@@ -1,40 +1,48 @@
-import { useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { UserLayout } from '@/components/UserLayout';
 import { useAuth } from '@/hooks/useAuth';
-import { mockAbsences, mockModules } from '@/data/index';
-import { formatDate } from '@/lib/index';
+import { absencesApi } from '@/api/services';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CalendarX, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { CalendarX, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+
+interface Absence {
+  id: number;
+  date: string;
+  justifiee: boolean;
+  motif: string | null;
+  module: { id: number; code: string; nom: string } | null;
+  formateur: { id: number; prenom: string; nom: string } | null;
+}
 
 export default function StagiaireAbsences() {
   const { user } = useAuth();
+  const [absences, setAbsences] = useState<Absence[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const userAbsences = useMemo(() => {
-    if (!user) return [];
-    return mockAbsences.filter((abs) => abs.stagiaireId === user.id);
-  }, [user]);
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data } = await absencesApi.list({ per_page: 200 });
+        setAbsences(data.data ?? data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const stats = useMemo(() => {
-    const total = userAbsences.length;
-    const justifiees = userAbsences.filter((abs) => abs.justifiee).length;
+    const total = absences.length;
+    const justifiees = absences.filter(a => a.justifiee).length;
     const nonJustifiees = total - justifiees;
-    const tauxPresence = total > 0 ? ((1 - total / 100) * 100).toFixed(1) : '100.0';
-
-    return {
-      total,
-      justifiees,
-      nonJustifiees,
-      tauxPresence: parseFloat(tauxPresence),
-    };
-  }, [userAbsences]);
-
-  const getModuleName = (moduleId: string): string => {
-    const module = mockModules.find((m) => m.id === moduleId);
-    return module ? module.nom : 'Module inconnu';
-  };
+    const tauxPresence = total > 0 ? Math.max(0, (1 - total / 100) * 100) : 100;
+    return { total, justifiees, nonJustifiees, tauxPresence };
+  }, [absences]);
 
   const showAlert = stats.nonJustifiees >= 3;
 
@@ -43,9 +51,7 @@ export default function StagiaireAbsences() {
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Mes Absences</h1>
-          <p className="text-muted-foreground mt-2">
-            Consultez votre historique d'absences et votre taux de présence
-          </p>
+          <p className="text-muted-foreground mt-2">Consultez votre historique d'absences et votre taux de présence</p>
         </div>
 
         {showAlert && (
@@ -66,9 +72,7 @@ export default function StagiaireAbsences() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.total}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Ce semestre
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Ce semestre</p>
             </CardContent>
           </Card>
 
@@ -79,9 +83,7 @@ export default function StagiaireAbsences() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">{stats.justifiees}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Avec justificatif
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Avec justificatif</p>
             </CardContent>
           </Card>
 
@@ -92,9 +94,7 @@ export default function StagiaireAbsences() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">{stats.nonJustifiees}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                À régulariser
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">À régulariser</p>
             </CardContent>
           </Card>
         </div>
@@ -102,33 +102,29 @@ export default function StagiaireAbsences() {
         <Card>
           <CardHeader>
             <CardTitle>Taux de Présence</CardTitle>
-            <CardDescription>
-              Votre assiduité globale ce semestre
-            </CardDescription>
+            <CardDescription>Votre assiduité globale ce semestre</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center justify-between">
-              <span className="text-3xl font-bold text-foreground">{stats.tauxPresence}%</span>
+              <span className="text-3xl font-bold text-foreground">{stats.tauxPresence.toFixed(1)}%</span>
               <Badge variant={stats.tauxPresence >= 90 ? 'default' : stats.tauxPresence >= 80 ? 'secondary' : 'destructive'}>
                 {stats.tauxPresence >= 90 ? 'Excellent' : stats.tauxPresence >= 80 ? 'Bien' : 'À améliorer'}
               </Badge>
             </div>
             <Progress value={stats.tauxPresence} className="h-2" />
-            <p className="text-sm text-muted-foreground">
-              Un taux de présence minimum de 80% est requis pour valider le semestre
-            </p>
+            <p className="text-sm text-muted-foreground">Un taux de présence minimum de 80% est requis pour valider le semestre</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle>Historique des Absences</CardTitle>
-            <CardDescription>
-              Liste complète de vos absences enregistrées
-            </CardDescription>
+            <CardDescription>Liste complète de vos absences enregistrées</CardDescription>
           </CardHeader>
           <CardContent>
-            {userAbsences.length === 0 ? (
+            {loading ? (
+              <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+            ) : absences.length === 0 ? (
               <div className="text-center py-12">
                 <CalendarX className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">Aucune absence enregistrée</p>
@@ -141,29 +137,29 @@ export default function StagiaireAbsences() {
                     <tr className="border-b">
                       <th className="text-left py-3 px-4 font-semibold text-sm">Date</th>
                       <th className="text-left py-3 px-4 font-semibold text-sm">Module</th>
+                      <th className="text-left py-3 px-4 font-semibold text-sm">Formateur</th>
                       <th className="text-left py-3 px-4 font-semibold text-sm">Justifiée</th>
                       <th className="text-left py-3 px-4 font-semibold text-sm">Motif</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {userAbsences.map((absence, index) => (
-                      <tr
-                        key={absence.id}
-                        className={index % 2 === 0 ? 'bg-muted/5' : ''}
-                      >
-                        <td className="py-3 px-4 text-sm">{formatDate(absence.date)}</td>
-                        <td className="py-3 px-4 text-sm font-medium">{getModuleName(absence.moduleId)}</td>
+                    {absences.map((absence, index) => (
+                      <tr key={absence.id} className={index % 2 === 0 ? 'bg-muted/5' : ''}>
+                        <td className="py-3 px-4 text-sm">
+                          {new Date(absence.date).toLocaleDateString('fr-FR')}
+                        </td>
+                        <td className="py-3 px-4 text-sm font-medium">
+                          {absence.module?.nom ?? 'Module inconnu'}
+                        </td>
+                        <td className="py-3 px-4 text-sm text-muted-foreground">
+                          {absence.formateur ? `${absence.formateur.prenom} ${absence.formateur.nom}` : '—'}
+                        </td>
                         <td className="py-3 px-4">
-                          <Badge
-                            variant={absence.justifiee ? 'default' : 'destructive'}
-                            className="text-xs"
-                          >
+                          <Badge variant={absence.justifiee ? 'default' : 'destructive'} className="text-xs">
                             {absence.justifiee ? 'OUI' : 'NON'}
                           </Badge>
                         </td>
-                        <td className="py-3 px-4 text-sm text-muted-foreground">
-                          {absence.motif || '-'}
-                        </td>
+                        <td className="py-3 px-4 text-sm text-muted-foreground">{absence.motif || '—'}</td>
                       </tr>
                     ))}
                   </tbody>

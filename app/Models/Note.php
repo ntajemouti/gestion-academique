@@ -14,6 +14,7 @@ class Note extends Model
         'stagiaire_id',
         'module_id',
         'formateur_id',
+        'groupe_id',
         'note',
         'coefficient',
         'date_evaluation',
@@ -24,9 +25,9 @@ class Note extends Model
     protected function casts(): array
     {
         return [
-            'note'           => 'float',
-            'coefficient'    => 'float',
-            'date_evaluation'=> 'date',
+            'note'            => 'float',
+            'coefficient'     => 'float',
+            'date_evaluation' => 'date',
         ];
     }
 
@@ -45,7 +46,11 @@ class Note extends Model
         return $this->belongsTo(User::class, 'formateur_id');
     }
 
-    // ── Computed ──────────────────────────────────────────────
+    public function groupe(): BelongsTo
+    {
+        return $this->belongsTo(Groupe::class);
+    }
+
     public function getNotePondereeAttribute(): float
     {
         return $this->note * $this->coefficient;

@@ -46,12 +46,12 @@ const stagiaireNavItems = [
 ];
 
 const formateurNavItems = [
-  { label: 'Tableau de bord',       path: ROUTE_PATHS.FORMATEUR_DASHBOARD,          icon: LayoutDashboard },
-  { label: 'Mes Modules',           path: ROUTE_PATHS.FORMATEUR_MES_MODULES,        icon: BookOpen },
-  { label: 'Emploi du temps',       path: ROUTE_PATHS.STAGIAIRE_EMPLOI_DU_TEMPS,    icon: Calendar },
+  { label: 'Tableau de bord',       path: ROUTE_PATHS.FORMATEUR_DASHBOARD,           icon: LayoutDashboard },
+  { label: 'Mes Modules',           path: ROUTE_PATHS.FORMATEUR_MES_MODULES,         icon: BookOpen },
+  { label: 'Emploi du temps',       path: ROUTE_PATHS.FORMATEUR_EMPLOI_DU_TEMPS,     icon: Calendar },
   { label: 'Absences Stagiaires',   path: ROUTE_PATHS.FORMATEUR_ABSENCES_STAGIAIRES, icon: CalendarX },
-  { label: 'Notes Stagiaires',      path: ROUTE_PATHS.FORMATEUR_NOTES_STAGIAIRES,   icon: ClipboardList },
-  { label: 'Demandes',              path: ROUTE_PATHS.STAGIAIRE_DEMANDES,            icon: FileText },
+  { label: 'Notes Stagiaires',      path: ROUTE_PATHS.FORMATEUR_NOTES_STAGIAIRES,    icon: ClipboardList },
+  { label: 'Mes Demandes',          path: ROUTE_PATHS.FORMATEUR_DEMANDES,            icon: FileText },
 ];
 
 export function UserLayout({ children, currentPath }: UserLayoutProps) {

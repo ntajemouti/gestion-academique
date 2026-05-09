@@ -59,8 +59,9 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ── Modules ──────────────────────────────────────────────────────────
-    Route::get('modules',          [ModuleController::class, 'index']);
-    Route::get('modules/{module}', [ModuleController::class, 'show']);
+    Route::get('modules',                                     [ModuleController::class, 'index']);
+    Route::get('modules/{module}',                            [ModuleController::class, 'show']);
+    Route::get('filieres/{filiere}/modules/structure',        [ModuleController::class, 'structureByFiliere']);
     Route::middleware('role:Administrateur')->group(function () {
         Route::post('modules',            [ModuleController::class, 'store']);
         Route::put('modules/{module}',    [ModuleController::class, 'update']);

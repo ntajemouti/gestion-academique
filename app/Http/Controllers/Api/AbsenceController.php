@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Absence;
+use App\Models\EmploiDuTemps;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,8 @@ class AbsenceController extends Controller
             'stagiaire:id,prenom,nom,matricule,groupe_id',
             'module:id,code,nom',
             'formateur:id,prenom,nom',
+            'groupe:id,nom',
+            'seance:id,jour,heure_debut,heure_fin,salle',
         ]);
 
         $auth = $request->user();
@@ -30,12 +33,11 @@ class AbsenceController extends Controller
 
         if ($request->filled('stagiaire_id'))  $query->where('stagiaire_id', $request->stagiaire_id);
         if ($request->filled('module_id'))     $query->where('module_id', $request->module_id);
+        if ($request->filled('groupe_id'))     $query->where('groupe_id', $request->groupe_id);
+        if ($request->filled('seance_id'))     $query->where('seance_id', $request->seance_id);
         if ($request->filled('justifiee'))     $query->where('justifiee', filter_var($request->justifiee, FILTER_VALIDATE_BOOLEAN));
         if ($request->filled('date_debut'))    $query->whereDate('date', '>=', $request->date_debut);
         if ($request->filled('date_fin'))      $query->whereDate('date', '<=', $request->date_fin);
-        if ($request->filled('groupe_id')) {
-            $query->whereHas('stagiaire', fn($q) => $q->where('groupe_id', $request->groupe_id));
-        }
 
         return response()->json(
             $query->orderByDesc('date')->paginate($request->input('per_page', 30))
@@ -48,6 +50,7 @@ class AbsenceController extends Controller
         $data = $request->validate([
             'stagiaire_id' => 'required|exists:users,id',
             'module_id'    => 'required|exists:modules,id',
+            'seance_id'    => 'nullable|exists:emplois_du_temps,id',
             'date'         => 'required|date',
             'justifiee'    => 'boolean',
             'motif'        => 'nullable|string|max:500',
@@ -56,8 +59,11 @@ class AbsenceController extends Controller
         // Verify the target user is a stagiaire
         $stagiaire = User::findOrFail($data['stagiaire_id']);
         if (! $stagiaire->isStagiaire()) {
-            return response()->json(['message' => 'L\'utilisateur ciblé n\'est pas un stagiaire.'], 422);
+            return response()->json(['message' => "L'utilisateur ciblé n'est pas un stagiaire."], 422);
         }
+
+        // Auto-populate groupe_id from the stagiaire
+        $data['groupe_id'] = $stagiaire->groupe_id;
 
         // Formateur can only record absences for their own modules
         $auth = $request->user();
@@ -69,6 +75,20 @@ class AbsenceController extends Controller
             $data['formateur_id'] = $auth->id;
         } else {
             $data['formateur_id'] = $request->input('formateur_id', $auth->id);
+        }
+
+        // If seance_id provided, auto-fill missing fields from séance
+        if (! empty($data['seance_id'])) {
+            $seance = EmploiDuTemps::findOrFail($data['seance_id']);
+            if (empty($data['module_id'])) {
+                $data['module_id']    = $seance->module_id;
+            }
+            if (empty($data['formateur_id'])) {
+                $data['formateur_id'] = $seance->formateur_id;
+            }
+            if (empty($data['groupe_id'])) {
+                $data['groupe_id']    = $seance->groupe_id;
+            }
         }
 
         // Prevent duplicate
@@ -84,7 +104,13 @@ class AbsenceController extends Controller
         $absence = Absence::create($data);
 
         return response()->json(
-            $absence->load(['stagiaire:id,prenom,nom,matricule', 'module:id,code,nom', 'formateur:id,prenom,nom']),
+            $absence->load([
+                'stagiaire:id,prenom,nom,matricule',
+                'module:id,code,nom',
+                'formateur:id,prenom,nom',
+                'groupe:id,nom',
+                'seance:id,jour,heure_debut,heure_fin,salle',
+            ]),
             201
         );
     }
@@ -99,7 +125,13 @@ class AbsenceController extends Controller
         }
 
         return response()->json(
-            $absence->load(['stagiaire:id,prenom,nom,matricule', 'module:id,code,nom,coefficient', 'formateur:id,prenom,nom'])
+            $absence->load([
+                'stagiaire:id,prenom,nom,matricule',
+                'module:id,code,nom,coefficient',
+                'formateur:id,prenom,nom',
+                'groupe:id,nom',
+                'seance:id,jour,heure_debut,heure_fin,salle',
+            ])
         );
     }
 
@@ -113,14 +145,18 @@ class AbsenceController extends Controller
         }
 
         $data = $request->validate([
-            'justifiee'     => 'required|boolean',
-            'motif'         => 'nullable|string|max:500',
-            'justificatif'  => 'nullable|string|max:255',
+            'justifiee'    => 'required|boolean',
+            'motif'        => 'nullable|string|max:500',
+            'justificatif' => 'nullable|string|max:255',
         ]);
 
         $absence->update($data);
 
-        return response()->json($absence->load(['stagiaire:id,prenom,nom', 'module:id,code,nom']));
+        return response()->json($absence->load([
+            'stagiaire:id,prenom,nom',
+            'module:id,code,nom',
+            'groupe:id,nom',
+        ]));
     }
 
     // DELETE /api/absences/{id}  [formateur, admin]
@@ -148,26 +184,26 @@ class AbsenceController extends Controller
                            ->with('module:id,code,nom')
                            ->get();
 
-        $total       = $absences->count();
-        $justifiees  = $absences->where('justifiee', true)->count();
-        $injustifiees= $total - $justifiees;
+        $total        = $absences->count();
+        $justifiees   = $absences->where('justifiee', true)->count();
+        $injustifiees = $total - $justifiees;
 
         $parModule = $absences->groupBy('module_id')->map(function ($items, $moduleId) {
             $module = $items->first()->module;
             return [
-                'module'        => $module?->nom,
-                'code'          => $module?->code,
-                'total'         => $items->count(),
-                'justifiees'    => $items->where('justifiee', true)->count(),
-                'injustifiees'  => $items->where('justifiee', false)->count(),
+                'module'       => $module?->nom,
+                'code'         => $module?->code,
+                'total'        => $items->count(),
+                'justifiees'   => $items->where('justifiee', true)->count(),
+                'injustifiees' => $items->where('justifiee', false)->count(),
             ];
         })->values();
 
         return response()->json([
-            'total'         => $total,
-            'justifiees'    => $justifiees,
-            'injustifiees'  => $injustifiees,
-            'par_module'    => $parModule,
+            'total'        => $total,
+            'justifiees'   => $justifiees,
+            'injustifiees' => $injustifiees,
+            'par_module'   => $parModule,
         ]);
     }
 }

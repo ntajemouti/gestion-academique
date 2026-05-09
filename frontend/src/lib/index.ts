@@ -20,8 +20,10 @@ export const ROUTE_PATHS = {
   STAGIAIRE_DEMANDES: '/stagiaire/demandes',
   FORMATEUR_DASHBOARD: '/formateur/dashboard',
   FORMATEUR_MES_MODULES: '/formateur/mes-modules',
+  FORMATEUR_EMPLOI_DU_TEMPS: '/formateur/emploi-du-temps',
   FORMATEUR_ABSENCES_STAGIAIRES: '/formateur/absences-stagiaires',
   FORMATEUR_NOTES_STAGIAIRES: '/formateur/notes-stagiaires',
+  FORMATEUR_DEMANDES: '/formateur/demandes',
   FILIERE_DETAIL: '/filiere/:id',
 } as const;
 

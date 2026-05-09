@@ -28,8 +28,10 @@ import AdminEmploisDuTemps from "@/pages/admin/EmploisDuTemps";
 // Pages — Formateur
 import FormateurDashboard from "@/pages/formateur/Dashboard";
 import FormateurMesModules from "@/pages/formateur/MesModules";
+import FormateurEmploiDuTemps from "@/pages/formateur/EmploiDuTemps";
 import FormateurAbsencesStagiaires from "@/pages/formateur/AbsencesStagiaires";
 import FormateurNotesStagiaires from "@/pages/formateur/NotesStagiaires";
+import FormateurDemandes from "@/pages/formateur/Demandes";
 
 // Pages — Stagiaire
 import StagiaireDashboard from "@/pages/stagiaire/Dashboard";
@@ -116,10 +118,14 @@ function AppRoutes() {
           element={<ProtectedRoute roles={["Formateur"]}><FormateurDashboard /></ProtectedRoute>} />
         <Route path={ROUTE_PATHS.FORMATEUR_MES_MODULES}
           element={<ProtectedRoute roles={["Formateur"]}><FormateurMesModules /></ProtectedRoute>} />
+        <Route path={ROUTE_PATHS.FORMATEUR_EMPLOI_DU_TEMPS}
+          element={<ProtectedRoute roles={["Formateur"]}><FormateurEmploiDuTemps /></ProtectedRoute>} />
         <Route path={ROUTE_PATHS.FORMATEUR_ABSENCES_STAGIAIRES}
           element={<ProtectedRoute roles={["Formateur"]}><FormateurAbsencesStagiaires /></ProtectedRoute>} />
         <Route path={ROUTE_PATHS.FORMATEUR_NOTES_STAGIAIRES}
           element={<ProtectedRoute roles={["Formateur"]}><FormateurNotesStagiaires /></ProtectedRoute>} />
+        <Route path={ROUTE_PATHS.FORMATEUR_DEMANDES}
+          element={<ProtectedRoute roles={["Formateur"]}><FormateurDemandes /></ProtectedRoute>} />
 
         {/* ── STAGIAIRE ──────────────────────────────────── */}
         <Route path={ROUTE_PATHS.STAGIAIRE_DASHBOARD}

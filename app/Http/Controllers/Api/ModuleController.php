@@ -15,12 +15,10 @@ class ModuleController extends Controller
     {
         $query = Module::with(['filiere', 'formateur']);
 
-        if ($request->filled('filiere_id')) {
-            $query->where('filiere_id', $request->filiere_id);
-        }
-        if ($request->filled('formateur_id')) {
-            $query->where('formateur_id', $request->formateur_id);
-        }
+        if ($request->filled('filiere_id'))  $query->where('filiere_id', $request->filiere_id);
+        if ($request->filled('formateur_id'))$query->where('formateur_id', $request->formateur_id);
+        if ($request->filled('annee'))       $query->where('annee', $request->annee);
+        if ($request->filled('option_nom'))  $query->where('option_nom', $request->option_nom);
         if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('nom', 'like', "%{$request->search}%")
@@ -30,11 +28,40 @@ class ModuleController extends Controller
 
         // Formateurs only see their own modules
         $auth = $request->user();
-        if ($auth->isFormateur()) {
+        if ($auth && $auth->isFormateur()) {
             $query->where('formateur_id', $auth->id);
         }
 
-        return response()->json($query->orderBy('nom')->get());
+        return response()->json($query->orderBy('annee')->orderBy('nom')->get());
+    }
+
+    // GET /api/filieres/{filiere}/structure  — structured by year and option
+    public function structureByFiliere(Request $request, int $filiereId): JsonResponse
+    {
+        $modules = Module::where('filiere_id', $filiereId)
+                         ->with('formateur:id,prenom,nom')
+                         ->orderBy('annee')
+                         ->orderBy('nom')
+                         ->get();
+
+        // Year 1: tronc commun
+        $annee1 = $modules->where('annee', 1)->values();
+
+        // Year 2: group by option (null = tronc commun)
+        $annee2Modules = $modules->where('annee', 2);
+        $annee2TroncCommun = $annee2Modules->whereNull('option_nom')->values();
+        $options = $annee2Modules->whereNotNull('option_nom')
+            ->groupBy('option_nom')
+            ->map(fn($items, $nom) => ['nom' => $nom, 'modules' => $items->values()])
+            ->values();
+
+        return response()->json([
+            'annee_1' => $annee1,
+            'annee_2' => [
+                'tronc_commun' => $annee2TroncCommun,
+                'options'      => $options,
+            ],
+        ]);
     }
 
     // POST /api/modules  [admin]
@@ -44,16 +71,17 @@ class ModuleController extends Controller
             'code'               => 'required|string|max:20|unique:modules,code',
             'nom'                => 'required|string|max:150',
             'filiere_id'         => 'required|exists:filieres,id',
+            'annee'              => 'required|integer|in:1,2',
+            'option_nom'         => 'nullable|string|max:100',
             'formateur_id'       => 'nullable|exists:users,id',
             'heures_par_semaine' => 'required|integer|min:1|max:40',
             'coefficient'        => 'required|numeric|min:0.5|max:10',
         ]);
 
-        // Ensure the assigned user is actually a Formateur
         if (! empty($data['formateur_id'])) {
             $f = User::findOrFail($data['formateur_id']);
             if (! $f->isFormateur()) {
-                return response()->json(['message' => 'L\'utilisateur assigné n\'est pas un formateur.'], 422);
+                return response()->json(['message' => "L'utilisateur assigné n'est pas un formateur."], 422);
             }
         }
 
@@ -65,9 +93,7 @@ class ModuleController extends Controller
     // GET /api/modules/{id}
     public function show(Module $module): JsonResponse
     {
-        return response()->json(
-            $module->load(['filiere', 'formateur'])
-        );
+        return response()->json($module->load(['filiere', 'formateur']));
     }
 
     // PUT /api/modules/{id}  [admin]
@@ -77,6 +103,8 @@ class ModuleController extends Controller
             'code'               => "required|string|max:20|unique:modules,code,{$module->id}",
             'nom'                => 'required|string|max:150',
             'filiere_id'         => 'required|exists:filieres,id',
+            'annee'              => 'required|integer|in:1,2',
+            'option_nom'         => 'nullable|string|max:100',
             'formateur_id'       => 'nullable|exists:users,id',
             'heures_par_semaine' => 'required|integer|min:1|max:40',
             'coefficient'        => 'required|numeric|min:0.5|max:10',
@@ -85,7 +113,7 @@ class ModuleController extends Controller
         if (! empty($data['formateur_id'])) {
             $f = User::findOrFail($data['formateur_id']);
             if (! $f->isFormateur()) {
-                return response()->json(['message' => 'L\'utilisateur assigné n\'est pas un formateur.'], 422);
+                return response()->json(['message' => "L'utilisateur assigné n'est pas un formateur."], 422);
             }
         }
 

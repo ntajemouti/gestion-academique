@@ -1,8 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { UserLayout } from '@/components/UserLayout';
-import { useAuth } from '@/hooks/useAuth';
-import { mockDemandes, mockUsers } from '@/data/index';
-import { Demande, formatDate, getStatusBadgeColor } from '@/lib/index';
+import { demandesApi } from '@/api/services';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,84 +9,75 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Plus, FileText, Clock, CheckCircle, XCircle, Upload } from 'lucide-react';
+import { Plus, FileText, Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface Demande {
+  id: number;
+  reference: string;
+  type: string;
+  description: string;
+  statut: 'En attente' | 'Approuvée' | 'Rejetée';
+  created_at: string;
+  fichier?: string | null;
+  motif_rejet?: string | null;
+}
+
+const TYPES = ['Attestation de présence', 'Certificat de scolarité', 'Relevé de notes', 'Autre'];
+
 export default function StagiaireDemandes() {
-  const { user } = useAuth();
   const { toast } = useToast();
+  const [demandes, setDemandes] = useState<Demande[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedDemande, setSelectedDemande] = useState<Demande | null>(null);
-  const [formData, setFormData] = useState({
-    type: '' as Demande['type'] | '',
-    description: '',
-    fichier: null as File | null,
-  });
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({ type: '', description: '', fichier: null as File | null });
 
-  const userDemandes = mockDemandes.filter((d) => d.userId === user?.id);
+  const load = async () => {
+    try {
+      const { data } = await demandesApi.list({ per_page: 100 });
+      setDemandes(data.data ?? data);
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => { load(); }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.type || !formData.description) {
-      toast({
-        title: 'Erreur',
-        description: 'Veuillez remplir tous les champs obligatoires',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erreur', description: 'Veuillez remplir tous les champs obligatoires', variant: 'destructive' });
       return;
     }
-
-    const newDemande: Demande = {
-      id: `dem-${Date.now()}`,
-      reference: `DEM-2026-${String(mockDemandes.length + 1).padStart(3, '0')}`,
-      userId: user!.id,
-      type: formData.type as Demande['type'],
-      description: formData.description,
-      dateCreation: new Date().toISOString().split('T')[0],
-      statut: 'En attente',
-      fichier: formData.fichier?.name,
-    };
-
-    mockDemandes.push(newDemande);
-    toast({
-      title: 'Demande créée',
-      description: `Votre demande ${newDemande.reference} a été soumise avec succès`,
-    });
-    setIsModalOpen(false);
-    setFormData({ type: '', description: '', fichier: null });
-  };
-
-  const getStatusIcon = (statut: Demande['statut']) => {
-    switch (statut) {
-      case 'En attente':
-        return <Clock className="w-4 h-4" />;
-      case 'Approuvée':
-        return <CheckCircle className="w-4 h-4" />;
-      case 'Rejetée':
-        return <XCircle className="w-4 h-4" />;
+    setSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('type', formData.type);
+      fd.append('description', formData.description);
+      if (formData.fichier) fd.append('fichier', formData.fichier);
+      await demandesApi.create(fd);
+      toast({ title: 'Demande créée', description: 'Votre demande a été soumise avec succès' });
+      setIsModalOpen(false);
+      setFormData({ type: '', description: '', fichier: null });
+      await load();
+    } catch (err: any) {
+      toast({ title: 'Erreur', description: err.response?.data?.message ?? 'Une erreur est survenue.', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const getTimelineSteps = (demande: Demande) => {
-    const steps = [
-      {
-        label: 'Demande soumise',
-        date: demande.dateCreation,
-        completed: true,
-      },
-      {
-        label: 'En cours de traitement',
-        date: demande.statut !== 'En attente' ? demande.dateCreation : null,
-        completed: demande.statut !== 'En attente',
-      },
-      {
-        label: demande.statut === 'Approuvée' ? 'Approuvée' : demande.statut === 'Rejetée' ? 'Rejetée' : 'En attente de décision',
-        date: demande.statut !== 'En attente' ? demande.dateCreation : null,
-        completed: demande.statut !== 'En attente',
-      },
-    ];
-    return steps;
-  };
+  const statusIcon = (statut: Demande['statut']) => ({
+    'En attente': <Clock className="w-4 h-4" />,
+    'Approuvée': <CheckCircle className="w-4 h-4" />,
+    'Rejetée': <XCircle className="w-4 h-4" />,
+  }[statut]);
+
+  const statusVariant = (statut: Demande['statut']): 'default' | 'secondary' | 'destructive' => ({
+    'En attente': 'secondary' as const,
+    'Approuvée': 'default' as const,
+    'Rejetée': 'destructive' as const,
+  }[statut]);
 
   return (
     <UserLayout>
@@ -96,75 +85,44 @@ export default function StagiaireDemandes() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-foreground">Mes Demandes</h1>
-            <p className="text-muted-foreground mt-1">
-              Gérez vos demandes administratives
-            </p>
+            <p className="text-muted-foreground mt-1">Gérez vos demandes administratives</p>
           </div>
           <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2">
-                <Plus className="w-4 h-4" />
-                Nouvelle demande
-              </Button>
+              <Button className="gap-2"><Plus className="w-4 h-4" />Nouvelle demande</Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>Nouvelle demande</DialogTitle>
-              </DialogHeader>
+              <DialogHeader><DialogTitle>Nouvelle demande</DialogTitle></DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="type">Type de demande *</Label>
-                  <Select
-                    value={formData.type || 'none'}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, type: value === 'none' ? '' : (value as Demande['type']) })
-                    }
-                  >
-                    <SelectTrigger id="type">
-                      <SelectValue placeholder="Sélectionnez un type" />
-                    </SelectTrigger>
+                  <Label>Type de demande *</Label>
+                  <Select value={formData.type || 'none'} onValueChange={v => setFormData({ ...formData, type: v === 'none' ? '' : v })}>
+                    <SelectTrigger><SelectValue placeholder="Sélectionnez un type" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Sélectionnez un type</SelectItem>
-                      <SelectItem value="Attestation de présence">Attestation de présence</SelectItem>
-                      <SelectItem value="Certificat de scolarité">Certificat de scolarité</SelectItem>
-                      <SelectItem value="Relevé de notes">Relevé de notes</SelectItem>
-                      <SelectItem value="Autre">Autre</SelectItem>
+                      {TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="description">Description *</Label>
+                  <Label>Description *</Label>
                   <Textarea
-                    id="description"
                     placeholder="Décrivez votre demande en détail..."
                     value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows={4}
-                    required
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    rows={4} required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="fichier">Pièce jointe (optionnel)</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      id="fichier"
-                      type="file"
-                      onChange={(e) =>
-                        setFormData({ ...formData, fichier: e.target.files?.[0] || null })
-                      }
-                      className="flex-1"
-                    />
-                    <Upload className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                  {formData.fichier && (
-                    <p className="text-sm text-muted-foreground">Fichier: {formData.fichier.name}</p>
-                  )}
+                  <Label>Pièce jointe (optionnel)</Label>
+                  <Input type="file" onChange={e => setFormData({ ...formData, fichier: e.target.files?.[0] || null })} />
                 </div>
                 <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-                    Annuler
+                  <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>Annuler</Button>
+                  <Button type="submit" disabled={submitting}>
+                    {submitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Soumettre la demande
                   </Button>
-                  <Button type="submit">Soumettre la demande</Button>
                 </div>
               </form>
             </DialogContent>
@@ -172,134 +130,46 @@ export default function StagiaireDemandes() {
         </div>
 
         <Card className="p-6">
-          <div className="space-y-4">
-            {userDemandes.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Aucune demande pour le moment</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Cliquez sur "Nouvelle demande" pour créer votre première demande
-                </p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Référence</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Type</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Date soumission</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Statut</th>
-                      <th className="text-left py-3 px-4 font-semibold text-foreground">Actions</th>
+          {loading ? (
+            <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
+          ) : demandes.length === 0 ? (
+            <div className="text-center py-12">
+              <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Aucune demande pour le moment</p>
+              <p className="text-sm text-muted-foreground mt-1">Cliquez sur "Nouvelle demande" pour créer votre première demande</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 font-semibold">Référence</th>
+                    <th className="text-left py-3 px-4 font-semibold">Type</th>
+                    <th className="text-left py-3 px-4 font-semibold">Date</th>
+                    <th className="text-left py-3 px-4 font-semibold">Statut</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {demandes.map(d => (
+                    <tr key={d.id} className="border-b hover:bg-muted/5">
+                      <td className="py-3 px-4"><span className="font-mono text-sm">{d.reference}</span></td>
+                      <td className="py-3 px-4 text-sm">{d.type}</td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">
+                        {new Date(d.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="py-3 px-4">
+                        <Badge variant={statusVariant(d.statut)} className="gap-1">
+                          {statusIcon(d.statut)}{d.statut}
+                        </Badge>
+                        {d.motif_rejet && <p className="text-xs text-red-600 mt-1">{d.motif_rejet}</p>}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {userDemandes.map((demande) => (
-                      <tr key={demande.id} className="border-b hover:bg-muted/5 transition-colors">
-                        <td className="py-3 px-4">
-                          <span className="font-mono text-sm">{demande.reference}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-sm">{demande.type}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className="text-sm text-muted-foreground">{formatDate(demande.dateCreation)}</span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Badge className={`${getStatusBadgeColor(demande.statut)} gap-1`}>
-                            {getStatusIcon(demande.statut)}
-                            {demande.statut}
-                          </Badge>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedDemande(demande)}
-                          >
-                            Détails
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
-
-        {selectedDemande && (
-          <Dialog open={!!selectedDemande} onOpenChange={() => setSelectedDemande(null)}>
-            <DialogContent className="max-w-3xl">
-              <DialogHeader>
-                <DialogTitle>Détails de la demande {selectedDemande.reference}</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Type</Label>
-                    <p className="font-medium">{selectedDemande.type}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Date de soumission</Label>
-                    <p className="font-medium">{formatDate(selectedDemande.dateCreation)}</p>
-                  </div>
-                  <div className="col-span-2">
-                    <Label className="text-muted-foreground">Description</Label>
-                    <p className="mt-1">{selectedDemande.description}</p>
-                  </div>
-                  {selectedDemande.fichier && (
-                    <div className="col-span-2">
-                      <Label className="text-muted-foreground">Pièce jointe</Label>
-                      <p className="text-sm text-primary mt-1">{selectedDemande.fichier}</p>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <Label className="text-lg font-semibold mb-4 block">Suivi de la demande</Label>
-                  <div className="space-y-4">
-                    {getTimelineSteps(selectedDemande).map((step, index) => (
-                      <div key={index} className="flex gap-4">
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                              step.completed ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                            }`}
-                          >
-                            {step.completed ? (
-                              <CheckCircle className="w-4 h-4" />
-                            ) : (
-                              <Clock className="w-4 h-4" />
-                            )}
-                          </div>
-                          {index < getTimelineSteps(selectedDemande).length - 1 && (
-                            <div
-                              className={`w-0.5 h-12 ${
-                                step.completed ? 'bg-primary' : 'bg-muted'
-                              }`}
-                            />
-                          )}
-                        </div>
-                        <div className="flex-1 pb-8">
-                          <p className={`font-medium ${
-                            step.completed ? 'text-foreground' : 'text-muted-foreground'
-                          }`}>
-                            {step.label}
-                          </p>
-                          {step.date && (
-                            <p className="text-sm text-muted-foreground mt-1">{formatDate(step.date)}</p>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </DialogContent>
-          </Dialog>
-        )}
       </div>
     </UserLayout>
   );

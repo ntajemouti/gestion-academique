@@ -15,12 +15,9 @@ class DemandeController extends Controller
     {
         $query = Demande::with(['user:id,prenom,nom,matricule', 'traitePar:id,prenom,nom']);
 
-        // Stagiaires only see their own demandes
+        // Each user only sees their own demandes (stagiaires & formateurs alike)
         $auth = $request->user();
-        if ($auth->isStagiaire()) {
-            $query->where('user_id', $auth->id);
-        } elseif ($auth->isFormateur()) {
-            // Formateurs have no demandes management — still scope to own just in case
+        if ($auth->isStagiaire() || $auth->isFormateur()) {
             $query->where('user_id', $auth->id);
         }
 
@@ -75,7 +72,7 @@ class DemandeController extends Controller
     {
         $auth = $request->user();
 
-        if ($auth->isStagiaire() && $demande->user_id !== $auth->id) {
+        if (($auth->isStagiaire() || $auth->isFormateur()) && $demande->user_id !== $auth->id) {
             return response()->json(['message' => 'Accès non autorisé.'], 403);
         }
 
@@ -116,12 +113,12 @@ class DemandeController extends Controller
         ]);
     }
 
-    // DELETE /api/demandes/{id}  [stagiaire — only if En attente]
+    // DELETE /api/demandes/{id}  [stagiaire or formateur — only if En attente]
     public function destroy(Request $request, Demande $demande): JsonResponse
     {
         $auth = $request->user();
 
-        if ($auth->isStagiaire()) {
+        if ($auth->isStagiaire() || $auth->isFormateur()) {
             if ($demande->user_id !== $auth->id) {
                 return response()->json(['message' => 'Accès non autorisé.'], 403);
             }

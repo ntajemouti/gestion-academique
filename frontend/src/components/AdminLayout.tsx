@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -17,6 +17,7 @@ import {
   X,
   LogOut,
   ChevronDown,
+  CheckCheck,
 } from 'lucide-react';
 import { ROUTE_PATHS } from '@/lib/index';
 import { useAuth } from '@/context/AuthContext';
@@ -47,12 +48,27 @@ const navItems = [
   { label: 'Emplois du temps', path: ROUTE_PATHS.ADMIN_EMPLOIS_DU_TEMPS, icon: Calendar },
 ];
 
+// Admin notifications — static, extend with real API later
+const ADMIN_NOTIFICATIONS = [
+  { id: 1, text: 'Nouvelle demande en attente d\'approbation.', time: 'Il y a 5 min', read: false },
+  { id: 2, text: 'Un nouvel utilisateur s\'est inscrit.', time: 'Il y a 1h', read: false },
+  { id: 3, text: 'L\'emploi du temps du groupe A1 a été modifié.', time: 'Hier', read: true },
+];
+
 export function AdminLayout({ children, currentPath }: AdminLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // BUG 4 FIX: search state
+  const [searchQuery, setSearchQuery] = useState('');
+  // BUG 3 FIX: notification state
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState(ADMIN_NOTIFICATIONS);
+
   const location = useLocation();
   const navigate  = useNavigate();
   const { user, logout } = useAuth();
   const activePath = currentPath || location.pathname;
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const initials = user
     ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}`.toUpperCase()
@@ -64,6 +80,17 @@ export function AdminLayout({ children, currentPath }: AdminLayoutProps) {
     await logout();
     navigate(ROUTE_PATHS.HOME, { replace: true });
   };
+
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  // BUG 4 FIX: filter nav by search
+  const filteredNavItems = searchQuery.trim()
+    ? navItems.filter(item =>
+        item.label.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : navItems;
 
   return (
     <div className="min-h-screen bg-background">
@@ -82,25 +109,62 @@ export function AdminLayout({ children, currentPath }: AdminLayoutProps) {
             </Link>
           </div>
 
+          {/* BUG 4 FIX: search with onChange */}
           <div className="hidden md:flex items-center flex-1 max-w-md mx-8">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Rechercher..."
-                className="w-full pl-10 pr-4 py-2 bg-muted border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Rechercher dans le menu..."
+                className="w-full pl-10 pr-4 py-2 bg-muted border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <button className="relative p-2 hover:bg-muted rounded-lg transition-colors">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-destructive rounded-full" />
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs font-semibold rounded-full flex items-center justify-center">
-                3
-              </span>
-            </button>
+            {/* BUG 3 FIX: Notification dropdown with working onClick */}
+            <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
+              <DropdownMenuTrigger asChild>
+                <button className="relative p-2 hover:bg-muted rounded-lg transition-colors">
+                  <Bell className="w-5 h-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-destructive text-destructive-foreground text-xs font-semibold rounded-full flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="flex items-center justify-between px-3 py-2 border-b">
+                  <span className="font-semibold text-sm">Notifications</span>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllRead}
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <CheckCheck className="w-3 h-3" /> Tout marquer lu
+                    </button>
+                  )}
+                </div>
+                {notifications.map(n => (
+                  <div
+                    key={n.id}
+                    className={`px-3 py-3 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors ${!n.read ? 'bg-primary/5' : ''}`}
+                    onClick={() => setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
+                  >
+                    <div className="flex items-start gap-2">
+                      {!n.read && <span className="mt-1.5 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
+                      <div className={!n.read ? '' : 'ml-4'}>
+                        <p className="text-sm leading-tight">{n.text}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{n.time}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* ── User dropdown ─────────────────────────────────── */}
             <DropdownMenu>
@@ -138,15 +202,29 @@ export function AdminLayout({ children, currentPath }: AdminLayoutProps) {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0`}
       >
+        {/* BUG 4 FIX: mobile search in sidebar */}
+        <div className="p-4 border-b md:hidden">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              className="w-full pl-10 pr-4 py-2 bg-muted border-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
         <nav className="p-4 space-y-1">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activePath === item.path;
             return (
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => { setSidebarOpen(false); setSearchQuery(''); }}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                   isActive
                     ? 'bg-primary text-primary-foreground shadow-sm'
@@ -158,9 +236,12 @@ export function AdminLayout({ children, currentPath }: AdminLayoutProps) {
               </Link>
             );
           })}
+          {filteredNavItems.length === 0 && searchQuery && (
+            <p className="text-sm text-muted-foreground px-4 py-3">Aucun résultat pour « {searchQuery} »</p>
+          )}
         </nav>
 
-        {/* ── Sidebar bottom: user info + logout ──────────────── */}
+        {/* ── Sidebar bottom: logout ──────────────────────────── */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-border">
           <button
             onClick={handleLogout}

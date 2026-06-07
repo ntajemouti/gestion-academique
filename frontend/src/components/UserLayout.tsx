@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -15,6 +15,7 @@ import {
   GraduationCap,
   LogOut,
   ChevronDown,
+  CheckCheck,
 } from 'lucide-react';
 import { ROUTE_PATHS } from '@/lib/index';
 import { useAuth } from '@/context/AuthContext';
@@ -54,8 +55,32 @@ const formateurNavItems = [
   { label: 'Mes Demandes',          path: ROUTE_PATHS.FORMATEUR_DEMANDES,            icon: FileText },
 ];
 
+// ── Static notifications per role (extend with real API later) ──────────────
+function useNotifications(role: string) {
+  const base = [
+    { id: 1, text: 'Bienvenue sur MyISTA !', time: 'Maintenant', read: false },
+  ];
+  const extra = role === 'Stagiaire'
+    ? [
+        { id: 2, text: 'Votre emploi du temps a été mis à jour.', time: 'Aujourd\'hui', read: false },
+        { id: 3, text: 'Une nouvelle note a été saisie.', time: 'Hier', read: true },
+      ]
+    : role === 'Formateur'
+    ? [
+        { id: 2, text: 'Un stagiaire a soumis une demande.', time: 'Aujourd\'hui', read: false },
+      ]
+    : [];
+  return [...base, ...extra];
+}
+
 export function UserLayout({ children, currentPath }: UserLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // BUG 4 FIX: search state
+  const [searchQuery, setSearchQuery] = useState('');
+  // BUG 3 FIX: notifications state
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<ReturnType<typeof useNotifications>>([]);
+
   const location  = useLocation();
   const navigate  = useNavigate();
   const { user, logout } = useAuth();
@@ -63,6 +88,11 @@ export function UserLayout({ children, currentPath }: UserLayoutProps) {
   const isFormateur = user?.role === 'Formateur';
   const activePath  = currentPath || location.pathname;
   const navItems    = isFormateur ? formateurNavItems : stagiaireNavItems;
+
+  const allNotifs = useNotifications(user?.role ?? '');
+  useEffect(() => { setNotifications(allNotifs); }, [user?.role]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   const initials = user
     ? `${user.prenom.charAt(0)}${user.nom.charAt(0)}`.toUpperCase()
@@ -77,6 +107,17 @@ export function UserLayout({ children, currentPath }: UserLayoutProps) {
   const handleLogout = async () => {
     await logout();
     navigate(ROUTE_PATHS.HOME, { replace: true });
+  };
+
+  // BUG 4 FIX: filter nav items by search query
+  const filteredNavItems = searchQuery.trim()
+    ? navItems.filter(item =>
+        item.label.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : navItems;
+
+  const markAllRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
   };
 
   return (
@@ -99,22 +140,68 @@ export function UserLayout({ children, currentPath }: UserLayoutProps) {
             </Link>
           </div>
 
+          {/* BUG 4 FIX: Search with onChange handler */}
           <div className="hidden md:flex flex-1 max-w-md mx-8">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Rechercher..."
+                placeholder="Rechercher dans le menu..."
                 className="pl-10 bg-muted border-0"
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
               />
             </div>
           </div>
 
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full" />
-            </Button>
+            {/* BUG 3 FIX: Notification dropdown with real onClick + content */}
+            <DropdownMenu open={notifOpen} onOpenChange={setNotifOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="flex items-center justify-between px-3 py-2 border-b">
+                  <span className="font-semibold text-sm">Notifications</span>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllRead}
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <CheckCheck className="w-3 h-3" /> Tout marquer lu
+                    </button>
+                  )}
+                </div>
+                {notifications.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    Aucune notification
+                  </div>
+                ) : (
+                  notifications.map(n => (
+                    <div
+                      key={n.id}
+                      className={`px-3 py-3 border-b last:border-b-0 cursor-pointer hover:bg-muted/50 transition-colors ${!n.read ? 'bg-primary/5' : ''}`}
+                      onClick={() => setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, read: true } : x))}
+                    >
+                      <div className="flex items-start gap-2">
+                        {!n.read && <span className="mt-1.5 h-2 w-2 rounded-full bg-primary flex-shrink-0" />}
+                        <div className={!n.read ? '' : 'ml-4'}>
+                          <p className="text-sm leading-tight">{n.text}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{n.time}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* ── User dropdown ──────────────────────────────────── */}
             <DropdownMenu>
@@ -162,8 +249,22 @@ export function UserLayout({ children, currentPath }: UserLayoutProps) {
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } lg:translate-x-0`}
       >
+        {/* BUG 4 FIX: mobile search inside sidebar */}
+        <div className="p-4 border-b md:hidden">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="search"
+              placeholder="Rechercher..."
+              className="pl-10 bg-muted border-0 text-sm"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </div>
+
         <nav className="p-4 space-y-1 pb-20">
-          {navItems.map((item) => {
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activePath === item.path;
 
@@ -171,7 +272,7 @@ export function UserLayout({ children, currentPath }: UserLayoutProps) {
               <Link
                 key={item.path}
                 to={item.path}
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => { setSidebarOpen(false); setSearchQuery(''); }}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                   isActive
                     ? 'bg-primary text-primary-foreground shadow-sm'
@@ -183,6 +284,9 @@ export function UserLayout({ children, currentPath }: UserLayoutProps) {
               </Link>
             );
           })}
+          {filteredNavItems.length === 0 && searchQuery && (
+            <p className="text-sm text-muted-foreground px-4 py-3">Aucun résultat pour « {searchQuery} »</p>
+          )}
         </nav>
 
         {/* ── Sidebar bottom: logout ─────────────────────────── */}

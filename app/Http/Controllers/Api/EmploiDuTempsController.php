@@ -14,7 +14,8 @@ class EmploiDuTempsController extends Controller
     {
         $query = EmploiDuTemps::with([
             'groupe:id,nom,filiere_id',
-            'module:id,code,nom',
+            'module:id,code,nom,filiere_id',
+            'module.filiere:id,nom,color',
             'formateur:id,prenom,nom',
         ]);
 
@@ -30,7 +31,10 @@ class EmploiDuTempsController extends Controller
             if ($auth->groupe_id) {
                 $query->where('groupe_id', $auth->groupe_id);
             } else {
-                return response()->json([]);
+                return response()->json([
+                    'Lundi'    => [], 'Mardi'  => [], 'Mercredi' => [],
+                    'Jeudi'    => [], 'Vendredi' => [], 'Samedi' => [],
+                ]);
             }
         }
 
@@ -43,7 +47,14 @@ class EmploiDuTempsController extends Controller
 
         $slots = $query->orderByRaw("FIELD(jour, 'Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi')")
                        ->orderBy('heure_debut')
-                       ->get();
+                       ->get()
+                       ->map(function ($slot) {
+                           // BUG 2 FIX: MySQL TIME columns return "HH:MM:SS".
+                           // Normalise to "HH:MM" so frontend string comparisons work.
+                           $slot->heure_debut = substr($slot->heure_debut, 0, 5);
+                           $slot->heure_fin   = substr($slot->heure_fin,   0, 5);
+                           return $slot;
+                       });
 
         // Group by day for easy frontend consumption
         $grouped = collect($jours)->mapWithKeys(fn($j) => [
@@ -73,19 +84,22 @@ class EmploiDuTempsController extends Controller
         }
 
         $slot = EmploiDuTemps::create($data);
+        $slot->load(['groupe:id,nom', 'module:id,code,nom,filiere_id', 'module.filiere:id,nom,color', 'formateur:id,prenom,nom']);
 
-        return response()->json(
-            $slot->load(['groupe:id,nom', 'module:id,code,nom', 'formateur:id,prenom,nom']),
-            201
-        );
+        // BUG 2 FIX: Normalise times in the created response too
+        $slot->heure_debut = substr($slot->heure_debut, 0, 5);
+        $slot->heure_fin   = substr($slot->heure_fin,   0, 5);
+
+        return response()->json($slot, 201);
     }
 
     // GET /api/emplois-du-temps/{id}
     public function show(EmploiDuTemps $emploiDuTemps): JsonResponse
     {
-        return response()->json(
-            $emploiDuTemps->load(['groupe', 'module', 'formateur:id,prenom,nom'])
-        );
+        $emploiDuTemps->load(['groupe', 'module', 'formateur:id,prenom,nom']);
+        $emploiDuTemps->heure_debut = substr($emploiDuTemps->heure_debut, 0, 5);
+        $emploiDuTemps->heure_fin   = substr($emploiDuTemps->heure_fin,   0, 5);
+        return response()->json($emploiDuTemps);
     }
 
     // PUT /api/emplois-du-temps/{id}  [admin]
@@ -107,25 +121,28 @@ class EmploiDuTempsController extends Controller
         }
 
         $emploiDuTemps->update($data);
+        $emploiDuTemps->load(['groupe:id,nom', 'module:id,code,nom,filiere_id', 'module.filiere:id,nom,color', 'formateur:id,prenom,nom']);
 
-        return response()->json(
-            $emploiDuTemps->load(['groupe:id,nom', 'module:id,code,nom', 'formateur:id,prenom,nom'])
-        );
+        $emploiDuTemps->heure_debut = substr($emploiDuTemps->heure_debut, 0, 5);
+        $emploiDuTemps->heure_fin   = substr($emploiDuTemps->heure_fin,   0, 5);
+
+        return response()->json($emploiDuTemps);
     }
 
     // DELETE /api/emplois-du-temps/{id}  [admin]
     public function destroy(EmploiDuTemps $emploiDuTemps): JsonResponse
     {
         $emploiDuTemps->delete();
-
         return response()->json(['message' => 'Créneau supprimé.']);
     }
 
     // ── Private helpers ───────────────────────────────────────
     private function checkConflicts(array $data, ?int $excludeId = null): ?string
     {
+        // BUG 2 FIX: MySQL stores TIME as HH:MM:SS. The conflict query must use
+        // TIME() function so "08:00" matches "08:00:00" stored in the DB.
         $base = EmploiDuTemps::where('jour', $data['jour'])
-                             ->where('heure_debut', $data['heure_debut']);
+                             ->whereRaw("TIME(heure_debut) = ?", [$data['heure_debut']]);
 
         if ($excludeId) {
             $base->where('id', '!=', $excludeId);

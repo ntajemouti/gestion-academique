@@ -10,7 +10,6 @@ import { LogIn, UserPlus } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { ROUTE_PATHS } from '@/lib/index';
-import { api } from '@/lib/api';
 
 // ── Scroll helper — works with HashRouter (href="#x" doesn't work in HashRouter) ──
 function scrollTo(id: string) {
@@ -20,26 +19,34 @@ function scrollTo(id: string) {
 export default function Home() {
   const [filieres, setFilieres] = useState<any[]>([]);
   const [clubs, setClubs]       = useState<any[]>([]);
-
-  // ── Real-time stats from the backend ──────────────────────────
   const [stats, setStats] = useState({ stagiaires: 0, formateurs: 0, filieres: 0, clubs: 0 });
 
   useEffect(() => {
-    // Load public lists — handle both plain arrays and paginated { data: [] } responses
-    api.get('/filieres').then((res: any) => {
-      const list = Array.isArray(res) ? res : res?.data ?? res ?? [];
-      setFilieres(list);
-    }).catch(() => {});
+    // BUG 1 FIX: Use fetch() with no auth header for public endpoints so the
+    // backend always hits the public route regardless of login state.
+    // The authenticated /clubs route has a different response shape which was
+    // causing clubs to appear empty when the user was logged in.
+    const BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
-    api.get('/clubs', { params: { statut: 'Actif', per_page: 100 } }).then((res: any) => {
-      const list = Array.isArray(res) ? res : res?.data ?? res ?? [];
-      setClubs(list);
-    }).catch(() => {});
+    fetch(`${BASE}/filieres`, { headers: { Accept: 'application/json' } })
+      .then(r => r.json())
+      .then((res: any) => {
+        const list = Array.isArray(res) ? res : res?.data ?? [];
+        setFilieres(list);
+      })
+      .catch(() => {});
 
-    // ── Live counts from the dedicated public /stats endpoint ──
-    // Works for everyone (no token needed) and reflects DB changes immediately.
+    fetch(`${BASE}/clubs`, { headers: { Accept: 'application/json' } })
+      .then(r => r.json())
+      .then((res: any) => {
+        const list = Array.isArray(res) ? res : res?.data ?? [];
+        setClubs(list);
+      })
+      .catch(() => {});
+
     const fetchStats = () => {
-      api.get('/stats')
+      fetch(`${BASE}/stats`, { headers: { Accept: 'application/json' } })
+        .then(r => r.json())
         .then((data: any) => {
           setStats({
             stagiaires: data.stagiaires ?? 0,
@@ -48,15 +55,11 @@ export default function Home() {
             clubs:      data.clubs      ?? 0,
           });
         })
-        .catch(() => {}); // fail silently — UI keeps last known values
+        .catch(() => {});
     };
-
-    fetchStats(); // immediate on mount
-
-    // Poll every 30 s so the numbers update while the page is open
-    // (reflects admin adding/removing users without a full reload)
+    fetchStats();
     const interval = setInterval(fetchStats, 30_000);
-    return () => clearInterval(interval); // cleanup on unmount
+    return () => clearInterval(interval);
   }, []);
 
   const { isAuthenticated } = useAuth();
@@ -107,7 +110,6 @@ export default function Home() {
               Gérez vos parcours académiques et administratifs en toute simplicité
             </p>
 
-            {/* ✅ FIXED: onClick + scrollTo instead of href="#..." — works with HashRouter */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="text-lg px-8" onClick={() => scrollTo('filieres')}>
                 Découvrir les Filières
@@ -154,53 +156,60 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filieres.map((filiere, index) => (
-              <motion.div
-                key={filiere.id}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1, duration: 0.5 }}
-              >
-                <Card className="h-full hover:shadow-lg transition-shadow duration-200">
-                  <CardHeader>
-                    <div
-                      className="w-12 h-12 rounded-xl mb-4 flex items-center justify-center"
-                      style={{ backgroundColor: `${filiere.color}20` }}
-                    >
-                      <BookOpen className="w-6 h-6" style={{ color: filiere.color }} />
-                    </div>
-                    <CardTitle className="text-xl">{filiere.nom}</CardTitle>
-                    <Badge
-                      variant="secondary"
-                      className="w-fit font-mono text-xs"
-                      style={{ backgroundColor: `${filiere.color}15`, color: filiere.color }}
-                    >
-                      {filiere.code}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="mb-4">{filiere.description}</CardDescription>
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>Durée: {filiere.duree} ans</span>
+          {filieres.length === 0 ? (
+            <div className="text-center text-muted-foreground py-12">
+              <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p>Aucune filière disponible pour le moment.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {filieres.map((filiere, index) => (
+                <motion.div
+                  key={filiere.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: index * 0.1, duration: 0.5 }}
+                >
+                  <Card className="h-full hover:shadow-lg transition-shadow duration-200">
+                    <CardHeader>
+                      <div
+                        className="w-12 h-12 rounded-xl mb-4 flex items-center justify-center"
+                        style={{ backgroundColor: `${filiere.color}20` }}
+                      >
+                        <BookOpen className="w-6 h-6" style={{ color: filiere.color }} />
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <span>{filiere.niveau}</span>
+                      <CardTitle className="text-xl">{filiere.nom}</CardTitle>
+                      <Badge
+                        variant="secondary"
+                        className="w-fit font-mono text-xs"
+                        style={{ backgroundColor: `${filiere.color}15`, color: filiere.color }}
+                      >
+                        {filiere.code}
+                      </Badge>
+                    </CardHeader>
+                    <CardContent>
+                      <CardDescription className="mb-4">{filiere.description}</CardDescription>
+                      <div className="space-y-2 mb-4">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span>Durée: {filiere.duree} ans</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <span>{filiere.niveau}</span>
+                        </div>
                       </div>
-                    </div>
-                    <Button
-                      variant="outline" className="w-full" onClick={() => navigate(`/filiere/${filiere.id}`)}>
-                      En savoir plus
-                    </Button>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                      <Button
+                        variant="outline" className="w-full" onClick={() => navigate(`/filiere/${filiere.id}`)}>
+                        En savoir plus
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -223,57 +232,63 @@ export default function Home() {
             </p>
           </motion.div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {clubs.map((club, index) => {
-              const IconComponent = club.icon === 'Code' ? BookOpen : club.icon === 'Shield' ? Star : club.icon === 'Brain' ? GraduationCap : club.icon === 'Palette' ? Star : Star;
-              // ✅ FIXED: API returns snake_case — nombre_membres, capacite_max
-              const membres  = club.nombre_membres ?? club.membres_count ?? 0;
-              const capacite = club.capacite_max ?? 0;
-              const progress = capacite > 0 ? Math.min((membres / capacite) * 100, 100) : 0;
+          {clubs.length === 0 ? (
+            <div className="text-center text-muted-foreground py-12">
+              <Star className="w-12 h-12 mx-auto mb-4 opacity-30" />
+              <p>Aucun club disponible pour le moment.</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {clubs.map((club, index) => {
+                const IconComponent = club.icon === 'Code' ? BookOpen : club.icon === 'Shield' ? Star : club.icon === 'Brain' ? GraduationCap : club.icon === 'Palette' ? Star : Star;
+                const membres  = club.membres_count ?? club.nombre_membres ?? 0;
+                const capacite = club.capacite_max ?? 0;
+                const progress = capacite > 0 ? Math.min((membres / capacite) * 100, 100) : 0;
 
-              return (
-                <motion.div
-                  key={club.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: index * 0.1, duration: 0.5 }}
-                >
-                  <Card className="h-full hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                          <IconComponent className="w-6 h-6 text-primary" />
+                return (
+                  <motion.div
+                    key={club.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ delay: index * 0.1, duration: 0.5 }}
+                  >
+                    <Card className="h-full hover:shadow-lg transition-all duration-200 hover:scale-[1.02]">
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <IconComponent className="w-6 h-6 text-primary" />
+                          </div>
+                          <Badge variant="secondary">
+                            {membres} membres
+                          </Badge>
                         </div>
-                        <Badge variant="secondary">
-                          {membres} membres
-                        </Badge>
-                      </div>
-                      <CardTitle className="text-xl mt-4">{club.nom}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <CardDescription className="mb-4">{club.description}</CardDescription>
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm text-muted-foreground mb-2">
-                          <span>Capacité</span>
-                          <span>{membres}/{capacite}</span>
+                        <CardTitle className="text-xl mt-4">{club.nom}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <CardDescription className="mb-4">{club.description}</CardDescription>
+                        <div className="mb-4">
+                          <div className="flex justify-between text-sm text-muted-foreground mb-2">
+                            <span>Capacité</span>
+                            <span>{membres}/{capacite}</span>
+                          </div>
+                          <div className="w-full bg-muted rounded-full h-2">
+                            <div
+                              className="bg-primary h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="w-full bg-muted rounded-full h-2">
-                          <div
-                            className="bg-primary h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${progress}%` }}
-                          />
-                        </div>
-                      </div>
-                      <Button className="w-full" onClick={() => handleClubSignup(club.nom)} disabled={membres >= capacite}>
-                        {membres >= capacite ? 'Complet' : "S'inscrire"}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
+                        <Button className="w-full" onClick={() => handleClubSignup(club.nom)} disabled={membres >= capacite}>
+                          {membres >= capacite ? 'Complet' : "S'inscrire"}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
 
@@ -298,7 +313,6 @@ export default function Home() {
                 Notre mission est de former les talents de demain en leur offrant un environnement d'apprentissage moderne, des formateurs experts et un accompagnement personnalisé tout au long de leur parcours.
               </p>
 
-              {/* ✅ FIXED: Real numbers from API — update automatically when DB changes */}
               <div className="grid grid-cols-2 gap-6">
                 {[
                   { value: stats.stagiaires, label: 'Stagiaires' },
@@ -354,12 +368,7 @@ export default function Home() {
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1, duration: 0.5 }}
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1, duration: 0.5 }}>
               <Card className="text-center h-full">
                 <CardHeader>
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -368,7 +377,6 @@ export default function Home() {
                   <CardTitle>Email</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {/* ✅ FIXED: correct email */}
                   <a href="mailto:ista.bouznika2020@gmail.com" className="text-primary hover:underline break-all">
                     ista.bouznika2020@gmail.com
                   </a>
@@ -376,12 +384,7 @@ export default function Home() {
               </Card>
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2, duration: 0.5 }}
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.5 }}>
               <Card className="text-center h-full">
                 <CardHeader>
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -390,20 +393,12 @@ export default function Home() {
                   <CardTitle>Téléphone</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {/* ✅ FIXED: correct phone */}
-                  <a href="tel:0537743577" className="text-primary hover:underline">
-                    05377-43577
-                  </a>
+                  <a href="tel:0537743577" className="text-primary hover:underline">05377-43577</a>
                 </CardContent>
               </Card>
             </motion.div>
 
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3, duration: 0.5 }}
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.3, duration: 0.5 }}>
               <Card className="text-center h-full">
                 <CardHeader>
                   <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
@@ -412,11 +407,7 @@ export default function Home() {
                   <CardTitle>Adresse</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {/* ✅ FIXED: correct address */}
-                  <p className="text-muted-foreground">
-                    Quartier Industriel<br />
-                    Bouznika, Maroc
-                  </p>
+                  <p className="text-muted-foreground">Quartier Industriel<br />Bouznika, Maroc</p>
                 </CardContent>
               </Card>
             </motion.div>

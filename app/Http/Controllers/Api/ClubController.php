@@ -9,11 +9,7 @@ use Illuminate\Http\Request;
 
 class ClubController extends Controller
 {
-    // ─────────────────────────────────────────────────────────────────────
-    // PUBLIC (no auth) — used on the Home page before login
-    // ─────────────────────────────────────────────────────────────────────
-
-    // GET /api/clubs  (public, no is_member flag)
+    // GET /api/clubs  
     public function publicIndex(Request $request): JsonResponse
     {
         $query = Club::with(['responsable:id,prenom,nom,email'])
@@ -38,14 +34,10 @@ class ClubController extends Controller
         return response()->json($club);
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // AUTHENTICATED — includes is_member per authenticated user
-    // ─────────────────────────────────────────────────────────────────────
-
     // GET /api/clubs  (authenticated)
     public function index(Request $request): JsonResponse
     {
-        $query = Club::with(['responsable:id,prenom,nom,email'])
+        $query = Club::with(['responsable:id,prenom,nom,email', 'membres:id'])
                      ->withCount('membres');
 
         if ($request->filled('statut')) {
@@ -58,11 +50,10 @@ class ClubController extends Controller
         $clubs  = $query->orderBy('nom')->get();
         $authId = $request->user()->id;
 
-        // Load member IDs once per club to annotate is_member
         $clubs->each(function ($club) use ($authId) {
             $club->is_member      = $club->membres->contains('id', $authId);
             $club->nombre_membres = $club->membres_count;
-            unset($club->membres);
+            unset($club->membres); 
         });
 
         return response()->json($clubs);
@@ -122,13 +113,13 @@ class ClubController extends Controller
     // DELETE /api/clubs/{id}  [admin]
     public function destroy(Club $club): JsonResponse
     {
-        $club->membres()->detach(); // clean pivot first
+        $club->membres()->detach(); 
         $club->delete();
 
         return response()->json(['message' => 'Club supprimé.']);
     }
 
-    // POST /api/clubs/{id}/join  [any authenticated user]
+    // POST /api/clubs/{id}/join 
     public function join(Request $request, Club $club): JsonResponse
     {
         $user = $request->user();
@@ -154,7 +145,7 @@ class ClubController extends Controller
         ]);
     }
 
-    // DELETE /api/clubs/{id}/leave  [any authenticated user]
+    // DELETE /api/clubs/{id}/leave 
     public function leave(Request $request, Club $club): JsonResponse
     {
         $user = $request->user();

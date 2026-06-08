@@ -113,7 +113,7 @@ class DemandeController extends Controller
         ]);
     }
 
-    // DELETE /api/demandes/{id}  [stagiaire or formateur — only if En attente]
+    // DELETE /api/demandes/{id}  
     public function destroy(Request $request, Demande $demande): JsonResponse
     {
         $auth = $request->user();

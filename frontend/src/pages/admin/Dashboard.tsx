@@ -6,7 +6,7 @@ import { Loader2, Users, BookOpen, Layers, GraduationCap, UserCheck, ClipboardLi
 import { useToast } from '@/hooks/use-toast';
 import api from '@/api/client';
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+// Types
 interface DashboardStats {
   total_users: number;
   total_stagiaires: number;
@@ -29,7 +29,7 @@ interface RecentUser {
   created_at: string;
 }
 
-// ── Stat card ──────────────────────────────────────────────────────────────────
+// Stat card 
 interface StatCardProps {
   title: string;
   value: number | string;
@@ -59,7 +59,7 @@ function StatCard({ title, value, description, icon, colorClass }: StatCardProps
   );
 }
 
-// ── Role badge ─────────────────────────────────────────────────────────────────
+//  Role badge
 function RoleBadge({ role }: { role: string }) {
   const colors: Record<string, string> = {
     Administrateur: 'bg-purple-100 text-purple-800',
@@ -73,7 +73,7 @@ function RoleBadge({ role }: { role: string }) {
   );
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// Main component
 export default function AdminDashboard() {
   const { toast } = useToast();
   const [stats, setStats]     = useState<DashboardStats | null>(null);
@@ -83,8 +83,6 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
       setLoading(true);
       try {
-        // Fetch all data in parallel
-        // /api/users returns paginated response with ALL roles
         const [allUsersRes, filieresRes, groupesRes, modulesRes, demandesRes] = await Promise.all([
           api.get('/users', { params: { per_page: 500 } }),
           api.get('/filieres'),
@@ -92,8 +90,6 @@ export default function AdminDashboard() {
           api.get('/modules'),
           api.get('/demandes', { params: { per_page: 500 } }).catch(() => ({ data: { data: [] as any[] } })),
         ]);
-
-        // /api/users returns a Laravel paginator: { data: [...], total: N, ... }
         const users: any[]    = allUsersRes.data?.data    ?? allUsersRes.data    ?? [];
         const filieres: any[] = filieresRes.data?.data    ?? filieresRes.data    ?? [];
         const groupes: any[]  = groupesRes.data?.data     ?? groupesRes.data     ?? [];

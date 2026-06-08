@@ -14,29 +14,18 @@ use App\Http\Controllers\Api\EmploiDuTempsController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\StatsController;
 
-/*
-|--------------------------------------------------------------------------
-| Public routes — no auth required
-|--------------------------------------------------------------------------
-*/
 Route::prefix('auth')->group(function () {
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login',    [AuthController::class, 'login'])
-         ->middleware('throttle:10,1'); // max 10 login attempts / minute
+         ->middleware('throttle:10,1'); 
 });
 
-// Public: Home page data (filieres + clubs visible without login)
 Route::get('filieres',           [FiliereController::class, 'index']);
 Route::get('filieres/{filiere}', [FiliereController::class, 'show']);
-Route::get('clubs',              [ClubController::class, 'publicIndex']);   // ← public version (no is_member)
-Route::get('clubs/{club}',       [ClubController::class, 'publicShow']);    // ← public version
-Route::get('stats',              [StatsController::class, 'public']);   // ← public live counts (no auth)
+Route::get('clubs',              [ClubController::class, 'publicIndex']);  
+Route::get('clubs/{club}',       [ClubController::class, 'publicShow']);    
+Route::get('stats',              [StatsController::class, 'public']);   
 
-/*
-|--------------------------------------------------------------------------
-| Protected routes — Sanctum Bearer token required
-|--------------------------------------------------------------------------
-*/
 Route::middleware('auth:sanctum')->group(function () {
 
     // ── Auth ─────────────────────────────────────────────────────────────
@@ -77,8 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::delete('groupes/{groupe}', [GroupeController::class, 'destroy']);
     });
 
-    // ── Users
-    // ⚠️  Named sub-routes MUST be declared BEFORE {user} wildcard ─────────
+    // ── Users 
     Route::get('users/formateurs', [UserController::class, 'formateurs']);
     Route::middleware('role:Administrateur,Formateur')->group(function () {
         Route::get('users/stagiaires', [UserController::class, 'stagiaires']);
@@ -92,7 +80,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::patch('users/{user}/statut',  [UserController::class, 'updateStatut']);
     });
 
-    // ── Clubs (authenticated version — includes is_member flag) ──────────
+    // ── Clubs 
     Route::get('clubs',             [ClubController::class, 'index']);
     Route::get('clubs/{club}',      [ClubController::class, 'show']);
     Route::post('clubs/{club}/join',    [ClubController::class, 'join']);
@@ -115,7 +103,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ── Absences
-    // ⚠️  'absences/stats' MUST come BEFORE 'absences/{absence}' ──────────
     Route::get('absences/stats',     [AbsenceController::class, 'stats']);
     Route::get('absences',           [AbsenceController::class, 'index']);
     Route::get('absences/{absence}', [AbsenceController::class, 'show']);
@@ -126,7 +113,6 @@ Route::middleware('auth:sanctum')->group(function () {
     });
 
     // ── Notes
-    // ⚠️  'notes/bulletin' MUST come BEFORE 'notes/{note}' ───────────────
     Route::get('notes/bulletin', [NoteController::class, 'bulletin']);
     Route::get('notes',          [NoteController::class, 'index']);
     Route::get('notes/{note}',   [NoteController::class, 'show']);

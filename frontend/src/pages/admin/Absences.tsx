@@ -51,7 +51,7 @@ export default function AdminAbsences() {
   const emptyForm = { stagiaire_id: '', module_id: '', date: new Date().toISOString().split('T')[0], justifiee: false, motif: '' };
   const [formData, setFormData] = useState(emptyForm);
 
-  // ── Load all data ─────────────────────────────────────────
+  // Load all data
   const loadAll = async () => {
     setLoading(true);
     try {
@@ -74,7 +74,7 @@ export default function AdminAbsences() {
 
   useEffect(() => { loadAll(); }, []);
 
-  // ── Filters ───────────────────────────────────────────────
+  // Filters 
   const filtered = useMemo(() => absences.filter(a => {
     if (selGroupe !== 'all' && String(a.groupe_id) !== selGroupe) return false;
     if (selModule !== 'all' && String(a.module_id) !== selModule) return false;
@@ -85,7 +85,7 @@ export default function AdminAbsences() {
   const justifiees     = filtered.filter(a => a.justifiee).length;
   const nonJustifiees  = total - justifiees;
 
-  // ── Handlers ──────────────────────────────────────────────
+  // Handlers
   const openAdd = () => { setEditing(null); setFormData(emptyForm); setIsModalOpen(true); };
   const openEdit = (row: Absence) => {
     setEditing(row);
@@ -137,7 +137,7 @@ export default function AdminAbsences() {
     }
   };
 
-  // ── Columns ───────────────────────────────────────────────
+  // Columns
   const columns = [
     {
       key: 'date',

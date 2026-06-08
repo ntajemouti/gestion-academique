@@ -1,21 +1,15 @@
-/**
- * MyISTA API Services
- * One function per endpoint — import what you need in each page.
- */
 import api from './client';
-
-// ── Auth ─────────────────────────────────────────────────────
 export const authApi = {
   me:             ()          => api.get('/auth/me'),
   updatePassword: (data: any) => api.put('/auth/password', data),
 };
 
-// ── Dashboard ─────────────────────────────────────────────────
+//  Dashboard 
 export const dashboardApi = {
   stats: () => api.get('/dashboard'),
 };
 
-// ── Filières ──────────────────────────────────────────────────
+//  Filières
 export const filieresApi = {
   list:    (params?: any)             => api.get('/filieres', { params }),
   get:     (id: number)               => api.get(`/filieres/${id}`),
@@ -24,7 +18,7 @@ export const filieresApi = {
   delete:  (id: number)               => api.delete(`/filieres/${id}`),
 };
 
-// ── Modules ───────────────────────────────────────────────────
+//  Modules 
 export const modulesApi = {
   list:   (params?: any)           => api.get('/modules', { params }),
   get:    (id: number)             => api.get(`/modules/${id}`),
@@ -33,7 +27,7 @@ export const modulesApi = {
   delete: (id: number)             => api.delete(`/modules/${id}`),
 };
 
-// ── Groupes ───────────────────────────────────────────────────
+//  Groupes 
 export const groupesApi = {
   list:   (params?: any)           => api.get('/groupes', { params }),
   get:    (id: number)             => api.get(`/groupes/${id}`),
@@ -42,7 +36,7 @@ export const groupesApi = {
   delete: (id: number)             => api.delete(`/groupes/${id}`),
 };
 
-// ── Users ─────────────────────────────────────────────────────
+//  Users 
 export const usersApi = {
   list:          (params?: any)           => api.get('/users', { params }),
   get:           (id: number)             => api.get(`/users/${id}`),
@@ -54,7 +48,7 @@ export const usersApi = {
   stagiaires:    (params?: any)           => api.get('/users/stagiaires', { params }),
 };
 
-// ── Clubs ─────────────────────────────────────────────────────
+//  Clubs 
 export const clubsApi = {
   list:         (params?: any)           => api.get('/clubs', { params }),
   get:          (id: number)             => api.get(`/clubs/${id}`),
@@ -67,7 +61,7 @@ export const clubsApi = {
                   api.delete(`/clubs/${clubId}/members/${userId}`),
 };
 
-// ── Demandes ──────────────────────────────────────────────────
+//  Demandes 
 export const demandesApi = {
   list:    (params?: any)            => api.get('/demandes', { params }),
   get:     (id: number)              => api.get(`/demandes/${id}`),
@@ -80,7 +74,7 @@ export const demandesApi = {
              api.patch(`/demandes/${id}/reject`, { motif_rejet: motif }),
 };
 
-// ── Absences ──────────────────────────────────────────────────
+//  Absences 
 export const absencesApi = {
   list:   (params?: any)           => api.get('/absences', { params }),
   stats:  (stagiaireId: number)    => api.get('/absences/stats', { params: { stagiaire_id: stagiaireId } }),
@@ -90,7 +84,7 @@ export const absencesApi = {
   delete: (id: number)             => api.delete(`/absences/${id}`),
 };
 
-// ── Notes ─────────────────────────────────────────────────────
+//  Notes
 export const notesApi = {
   list:     (params?: any)           => api.get('/notes', { params }),
   bulletin: (stagiaireId: number)    => api.get('/notes/bulletin', { params: { stagiaire_id: stagiaireId } }),
@@ -100,7 +94,7 @@ export const notesApi = {
   delete:   (id: number)             => api.delete(`/notes/${id}`),
 };
 
-// ── Emplois du Temps ──────────────────────────────────────────
+//  Emplois du Temps 
 export const emploisApi = {
   list:   (params?: any)           => api.get('/emplois-du-temps', { params }),
   get:    (id: number)             => api.get(`/emplois-du-temps/${id}`),

@@ -7,8 +7,6 @@ import * as RRD from "react-router-dom-original";
 // Re-export everything so other imports keep working
 // @ts-expect-error - This is resolved at runtime by Vite alias
 export * from "react-router-dom-original";
-
-/** --------------------- Outbound: route list (once) --------------------- */
 let routesPosted = false;
 
 // Create a promise that resolves once routes are posted
@@ -61,7 +59,7 @@ function postAllRoutesOnce(children: AnyEl) {
     const list = Array.from(flattenRoutes(children)).sort();
     
     // Always log routes in development for debugging
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       console.log('Routes:', list);
     }
     

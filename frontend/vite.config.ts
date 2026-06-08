@@ -17,33 +17,33 @@ const generate: typeof _generate.default = ((_generate as any).default ?? _gener
 
 function cdnPrefixImages(): Plugin {
   const DEBUG = process.env.CDN_IMG_DEBUG === '1';
-  let publicDir = '';              // absolute path to Vite public dir
-  const imageSet = new Set<string>(); // stores normalized '/images/...' paths
+  let publicDir = '';              
+  const imageSet = new Set<string>(); 
 
   const isAbsolute = (p: string) =>
     /^(?:[a-z]+:)?\/\//i.test(p) || p.startsWith('data:') || p.startsWith('blob:');
 
-  // normalize a ref like './images/x.png', '../images/x.png', '/images/x.png' -> '/images/x.png'
+  
   const normalizeRef = (p: string) => {
     let s = p.trim();
-    // quick bail-outs
+  
     if (isAbsolute(s)) return s;
-    // strip leading ./ and any ../ segments (we treat public/ as root at runtime)
+    
     s = s.replace(/^(\.\/)+/, '');
     while (s.startsWith('../')) s = s.slice(3);
     if (s.startsWith('/')) s = s.slice(1);
-    // ensure it starts with images/
-    if (!s.startsWith('images/')) return p; // not under images → leave as is
-    return '/' + s; // canonical: '/images/...'
+
+    if (!s.startsWith('images/')) return p; 
+    return '/' + s; 
   };
 
   const toCDN = (p: string, cdn: string) => {
     const n = normalizeRef(p);
     if (isAbsolute(n)) return n;
-    if (!n.startsWith('/images/')) return p;           // not our folder
-    if (!imageSet.has(n)) return p;                    // not an existing file
+    if (!n.startsWith('/images/')) return p;           
+    if (!imageSet.has(n)) return p;                    
     const base = cdn.endsWith('/') ? cdn : cdn + '/';
-    return base + n.slice(1);                          // 'https://cdn/.../images/..'
+    return base + n.slice(1);                          
   };
 
   const rewriteSrcsetList = (value: string, cdn: string) =>
@@ -102,8 +102,8 @@ function cdnPrefixImages(): Plugin {
         }
       },
 
-      StringLiteral(path) {
-        // skip object keys: { "image": "..." }
+      StringLiteral(path: any) {
+       
         if (t.isObjectProperty(path.parent) && path.parentKey === 'key' && !path.parent.computed) return;
         // skip import/export sources
         if (t.isImportDeclaration(path.parent) || t.isExportAllDeclaration(path.parent) || t.isExportNamedDeclaration(path.parent)) return;

@@ -95,7 +95,7 @@ class UserController extends Controller
         return response()->json($user->load(['filiere', 'groupe']));
     }
 
-    // DELETE /api/users/{id}  [admin]  — soft deactivate, preserves history
+    // DELETE /api/users/{id}  [admin] 
     public function destroy(Request $request, User $user): JsonResponse
     {
         if ($user->id === $request->user()->id) {
@@ -116,7 +116,7 @@ class UserController extends Controller
         return response()->json(['message' => 'Statut mis à jour.', 'user' => $user]);
     }
 
-    // GET /api/users/formateurs  — dropdown list for all authenticated users
+    // GET /api/users/formateurs 
     public function formateurs(): JsonResponse
     {
         $formateurs = User::where('role', 'Formateur')
@@ -140,7 +140,7 @@ class UserController extends Controller
         return response()->json($query->orderBy('nom')->get());
     }
 
-    // POST /api/auth/avatar  — upload profile picture for authenticated user
+    // POST /api/auth/avatar 
     public function updateAvatar(Request $request): JsonResponse
     {
         $request->validate([
@@ -164,7 +164,7 @@ class UserController extends Controller
         ]);
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────
+    //  Private helpers 
     private function generateMatricule(string $role): string
     {
         $prefix = match($role) {

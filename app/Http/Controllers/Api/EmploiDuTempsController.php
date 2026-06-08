@@ -20,13 +20,9 @@ class EmploiDuTempsController extends Controller
         ]);
 
         $auth = $request->user();
-
-        // Formateurs only see their own schedule
         if ($auth->isFormateur()) {
             $query->where('formateur_id', $auth->id);
         }
-
-        // Stagiaires see their groupe's schedule
         if ($auth->isStagiaire()) {
             if ($auth->groupe_id) {
                 $query->where('groupe_id', $auth->groupe_id);
@@ -49,8 +45,6 @@ class EmploiDuTempsController extends Controller
                        ->orderBy('heure_debut')
                        ->get()
                        ->map(function ($slot) {
-                           // BUG 2 FIX: MySQL TIME columns return "HH:MM:SS".
-                           // Normalise to "HH:MM" so frontend string comparisons work.
                            $slot->heure_debut = substr($slot->heure_debut, 0, 5);
                            $slot->heure_fin   = substr($slot->heure_fin,   0, 5);
                            return $slot;
@@ -77,7 +71,7 @@ class EmploiDuTempsController extends Controller
             'salle'        => 'required|string|max:50',
         ]);
 
-        // Conflict checks
+        
         $conflicts = $this->checkConflicts($data);
         if ($conflicts) {
             return response()->json(['message' => $conflicts], 422);
@@ -86,7 +80,6 @@ class EmploiDuTempsController extends Controller
         $slot = EmploiDuTemps::create($data);
         $slot->load(['groupe:id,nom', 'module:id,code,nom,filiere_id', 'module.filiere:id,nom,color', 'formateur:id,prenom,nom']);
 
-        // BUG 2 FIX: Normalise times in the created response too
         $slot->heure_debut = substr($slot->heure_debut, 0, 5);
         $slot->heure_fin   = substr($slot->heure_fin,   0, 5);
 
@@ -136,11 +129,9 @@ class EmploiDuTempsController extends Controller
         return response()->json(['message' => 'Créneau supprimé.']);
     }
 
-    // ── Private helpers ───────────────────────────────────────
+    // Private helpers 
     private function checkConflicts(array $data, ?int $excludeId = null): ?string
     {
-        // BUG 2 FIX: MySQL stores TIME as HH:MM:SS. The conflict query must use
-        // TIME() function so "08:00" matches "08:00:00" stored in the DB.
         $base = EmploiDuTemps::where('jour', $data['jour'])
                              ->whereRaw("TIME(heure_debut) = ?", [$data['heure_debut']]);
 

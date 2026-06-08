@@ -173,7 +173,7 @@ class AbsenceController extends Controller
         return response()->json(['message' => 'Absence supprimée.']);
     }
 
-    // GET /api/absences/stats  — summary per stagiaire
+    // GET /api/absences/stats  
     public function stats(Request $request): JsonResponse
     {
         $request->validate([

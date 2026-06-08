@@ -1,8 +1,4 @@
-// src/lib/api.ts
-//
-// Home.tsx and FiliereDetail.tsx import from here.
-// We redirect everything to the real axios client so there is
-// only ONE http layer in the entire app (same base URL, same token key).
+
 
 import axiosClient from '@/api/client';
 

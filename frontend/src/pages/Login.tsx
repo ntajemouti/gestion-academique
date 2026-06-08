@@ -22,9 +22,8 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const { login, user, loading } = useAuth();
   const { toast }   = useToast();
-  const navigate    = useNavigate();   // ← navigation lives HERE, inside the router tree
+  const navigate    = useNavigate();  
 
-  // Already authenticated → redirect to the right dashboard
   useEffect(() => {
     if (!loading && user) {
       switch (user.role) {
@@ -49,8 +48,6 @@ export default function Login() {
         title:       'Connexion réussie',
         description: `Bienvenue ${result.user.prenom} !`,
       });
-
-      // Navigate based on role — happens here, not inside AuthContext
       switch (result.user.role) {
         case 'Administrateur': navigate(ROUTE_PATHS.ADMIN_DASHBOARD);      break;
         case 'Formateur':      navigate(ROUTE_PATHS.FORMATEUR_DASHBOARD);  break;

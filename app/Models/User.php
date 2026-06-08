@@ -38,7 +38,7 @@ class User extends Authenticatable
         ];
     }
 
-    // ── Helpers ──────────────────────────────────────────────
+    //  Helpers 
     public function isAdmin(): bool       { return $this->role === 'Administrateur'; }
     public function isStagiaire(): bool   { return $this->role === 'Stagiaire'; }
     public function isFormateur(): bool   { return $this->role === 'Formateur'; }
@@ -49,7 +49,7 @@ class User extends Authenticatable
         return "{$this->prenom} {$this->nom}";
     }
 
-    // ── Relationships ─────────────────────────────────────────
+    //  Relationships 
     public function filiere(): BelongsTo
     {
         return $this->belongsTo(Filiere::class);

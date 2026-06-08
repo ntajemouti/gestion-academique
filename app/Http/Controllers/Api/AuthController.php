@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
-    // ── POST /api/auth/register ───────────────────────────────
+    //  POST /api/auth/register 
     public function register(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -49,7 +49,7 @@ class AuthController extends Controller
         ], 201);
     }
 
-    // ── POST /api/auth/login ──────────────────────────────────
+    // POST /api/auth/login 
     public function login(Request $request): JsonResponse
     {
         $request->validate([
@@ -79,14 +79,14 @@ class AuthController extends Controller
         ]);
     }
 
-    // ── POST /api/auth/logout ─────────────────────────────────
+    // POST /api/auth/logout 
     public function logout(Request $request): JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Déconnexion réussie.']);
     }
 
-    // ── GET /api/auth/me ──────────────────────────────────────
+    // GET /api/auth/me 
     public function me(Request $request): JsonResponse
     {
         return response()->json(
@@ -94,7 +94,7 @@ class AuthController extends Controller
         );
     }
 
-    // ── PUT /api/auth/password ────────────────────────────────
+    // PUT /api/auth/password 
     public function updatePassword(Request $request): JsonResponse
     {
         $request->validate([

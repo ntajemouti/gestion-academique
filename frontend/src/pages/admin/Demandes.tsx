@@ -88,11 +88,10 @@ export default function AdminDemandes() {
     rejected:  demandes.filter((d) => d.statut === 'Rejetée').length,
   };
 
-  // ── Status change ─────────────────────────────────────────────────────────────
+  // Status change 
   const changeStatut = async (demande: Demande, statut: DemandeStatut) => {
     setProcessing(demande.id);
     try {
-      // Try dedicated approve/reject endpoints first, fallback to updateStatut
       let res;
       if (statut === 'Approuvée') {
         res = await demandesApi.approve(demande.id).catch(() =>
@@ -103,7 +102,6 @@ export default function AdminDemandes() {
       }
       const updated: Demande = res.data?.data ?? res.data ?? { ...demande, statut };
       setDemandes((prev) => prev.map((d) => (d.id === demande.id ? updated : d)));
-      // Also update selectedDemande if the modal is open
       if (selectedDemande?.id === demande.id) setSelectedDemande(updated);
       toast({ title: statut === 'Approuvée' ? 'Demande approuvée' : 'Demande rejetée' });
     } catch (err: any) {
@@ -117,7 +115,7 @@ export default function AdminDemandes() {
     }
   };
 
-  // ── Table columns ─────────────────────────────────────────────────────────────
+  // Table columns 
   const columns = [
     {
       key: 'reference',
@@ -130,7 +128,7 @@ export default function AdminDemandes() {
       key: 'user',
       label: 'Demandeur',
       render: (row: Demande) => {
-        const u = row.u;
+        const u = row.user;
         return (
           <div>
             <div className="font-medium">{u ? `${u.prenom} ${u.nom}` : '—'}</div>
@@ -197,7 +195,7 @@ export default function AdminDemandes() {
     },
   ];
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  //  Render
   return (
     <AdminLayout currentPath={ROUTE_PATHS.ADMIN_DEMANDES}>
       <div className="space-y-6">
@@ -240,7 +238,7 @@ export default function AdminDemandes() {
             <DialogDescription>Informations complètes sur la demande</DialogDescription>
           </DialogHeader>
           {selectedDemande && (() => {
-            const u = getUser(selectedDemande);
+            const u = selectedDemande.user;
             return (
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">

@@ -42,7 +42,7 @@ export default function AdminFilieres() {
   const [formData, setFormData]       = useState(DEFAULT_FORM);
   const { toast } = useToast();
 
-  // ── Load filieres from API ────────────────────────────────
+  // Load filieres from API 
   const loadFilieres = async () => {
     try {
       setIsLoading(true);
@@ -64,7 +64,7 @@ export default function AdminFilieres() {
     loadFilieres();
   }, []);
 
-  // ── Handlers ──────────────────────────────────────────────
+  //  Handlers 
   const handleAdd = () => {
     setEditingFiliere(null);
     setFormData(DEFAULT_FORM);
@@ -131,7 +131,7 @@ export default function AdminFilieres() {
     }
   };
 
-  // ── Table columns ─────────────────────────────────────────
+  // Table columns 
   const columns = [
     {
       key: 'code',
@@ -174,7 +174,7 @@ export default function AdminFilieres() {
     },
   ];
 
-  // ── Render ────────────────────────────────────────────────
+  //  Render 
   return (
     <AdminLayout currentPath="/admin/filieres">
       <div className="space-y-6">

@@ -49,7 +49,7 @@ class Demande extends Model
         return $this->belongsTo(User::class, 'traite_par');
     }
 
-    // ── Status helpers ────────────────────────────────────────
+    //  Status helpers
     public function approve(User $admin): void
     {
         $this->update([

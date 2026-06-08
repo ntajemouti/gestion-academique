@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // ── 1. Admin ─────────────────────────────────────────────
+        //  1. Admin 
         $admin = User::updateOrCreate(
             ['matricule' => 'ADM001'],
             [
@@ -32,7 +32,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // ── 2. Filieres ──────────────────────────────────────────
+        //  2. Filieres 
         $filDev = Filiere::firstOrCreate(
             ['code' => 'DEV'],
             [
@@ -66,7 +66,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // ── 3. Formateurs ────────────────────────────────────────
+        // 3. Formateurs 
         $form1 = User::firstOrCreate(
             ['email' => 'k.benali@myista.ma'],
             [
@@ -106,7 +106,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // ── 4. Modules ───────────────────────────────────────────
+        //  4. Modules 
         $mod1 = Module::firstOrCreate(['code' => 'WEB101'], ['nom' => 'Développement Web Frontend', 'filiere_id' => $filDev->id,   'formateur_id' => $form1->id, 'heures_par_semaine' => 8, 'coefficient' => 3]);
         $mod2 = Module::firstOrCreate(['code' => 'WEB201'], ['nom' => 'Développement Backend',      'filiere_id' => $filDev->id,   'formateur_id' => $form1->id, 'heures_par_semaine' => 6, 'coefficient' => 3]);
         $mod3 = Module::firstOrCreate(['code' => 'MOB101'], ['nom' => 'Développement Mobile',       'filiere_id' => $filDev->id,   'formateur_id' => $form1->id, 'heures_par_semaine' => 6, 'coefficient' => 2]);
@@ -114,7 +114,7 @@ class DatabaseSeeder extends Seeder
         $mod5 = Module::firstOrCreate(['code' => 'SEC101'], ['nom' => 'Cybersécurité',              'filiere_id' => $filInfra->id, 'formateur_id' => $form2->id, 'heures_par_semaine' => 6, 'coefficient' => 3]);
         $mod6 = Module::firstOrCreate(['code' => 'DAT101'], ['nom' => 'Analyse de Données',         'filiere_id' => $filData->id,  'formateur_id' => $form3->id, 'heures_par_semaine' => 8, 'coefficient' => 4]);
 
-        // ── 5. Groupes ───────────────────────────────────────────
+        //  5. Groupes 
         $grpDev1 = Groupe::firstOrCreate(
             ['nom' => 'DEV-A', 'filiere_id' => $filDev->id],
             [
@@ -155,7 +155,7 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
-        // ── 6. Stagiaires ────────────────────────────────────────
+        //  6. Stagiaires 
         $sta1 = User::firstOrCreate(
             ['email' => 'a.ouali@myista.ma'],
             ['matricule' => 'STA001', 'prenom' => 'Ahmed',  'nom' => 'Ouali',     'password' => 'password', 'role' => 'Stagiaire', 'statut' => 'Actif', 'filiere_id' => $filDev->id,   'groupe_id' => $grpDev1->id]
@@ -177,7 +177,7 @@ class DatabaseSeeder extends Seeder
             ['matricule' => 'STA005', 'prenom' => 'Yassine','nom' => 'Chraibi',   'password' => 'password', 'role' => 'Stagiaire', 'statut' => 'Actif', 'filiere_id' => $filData->id,  'groupe_id' => $grpData1->id]
         );
 
-        // ── 7. Notes ─────────────────────────────────────────────
+        //  7. Notes 
         $notesToSeed = [
             ['stagiaire_id' => $sta1->id, 'module_id' => $mod1->id, 'formateur_id' => $form1->id, 'note' => 15.5, 'coefficient' => 3, 'date_evaluation' => '2025-01-15', 'type_evaluation' => 'Contrôle'],
             ['stagiaire_id' => $sta1->id, 'module_id' => $mod2->id, 'formateur_id' => $form1->id, 'note' => 13.0, 'coefficient' => 3, 'date_evaluation' => '2025-01-20', 'type_evaluation' => 'Contrôle'],
@@ -197,7 +197,7 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        // ── 8. Absences ──────────────────────────────────────────
+        //  8. Absences 
         $absencesToSeed = [
             ['stagiaire_id' => $sta1->id, 'module_id' => $mod1->id, 'formateur_id' => $form1->id, 'date' => '2025-01-10', 'justifiee' => false],
             ['stagiaire_id' => $sta2->id, 'module_id' => $mod2->id, 'formateur_id' => $form1->id, 'date' => '2025-01-12', 'justifiee' => true,  'motif' => 'Maladie'],
@@ -213,7 +213,7 @@ class DatabaseSeeder extends Seeder
             );
         }
 
-        // ── 9. Clubs ─────────────────────────────────────────────
+        //  9. Clubs 
         $clubCode = Club::firstOrCreate(
             ['nom' => 'Club Coding'],
             ['description' => 'Hackathons et projets open source', 'responsable_id' => $form1->id, 'capacite_max' => 30, 'icon' => 'code',    'statut' => 'Actif']
@@ -232,7 +232,7 @@ class DatabaseSeeder extends Seeder
         $clubRobo->membres()->syncWithoutDetaching([$sta3->id => ['joined_at' => now()]]);
         $clubPhoto->membres()->syncWithoutDetaching([$sta5->id => ['joined_at' => now()]]);
 
-        // ── 10. Demandes ─────────────────────────────────────────
+        //  10. Demandes 
         Demande::firstOrCreate(
             ['user_id' => $sta1->id, 'type' => 'Attestation de présence'],
             ['description' => 'Pour dossier visa', 'statut' => 'En attente']
@@ -246,7 +246,7 @@ class DatabaseSeeder extends Seeder
             ['description' => 'Dossier banque', 'statut' => 'En attente']
         );
 
-        // ── 11. Emplois du temps ─────────────────────────────────
+        //  11. Emplois du temps 
         $slots = [
             ['groupe_id' => $grpDev1->id,   'module_id' => $mod1->id, 'formateur_id' => $form1->id, 'jour' => 'Lundi',    'heure_debut' => '08:30', 'heure_fin' => '10:30', 'salle' => 'Labo 1'],
             ['groupe_id' => $grpDev1->id,   'module_id' => $mod2->id, 'formateur_id' => $form1->id, 'jour' => 'Mardi',    'heure_debut' => '10:30', 'heure_fin' => '12:30', 'salle' => 'Salle A2'],

@@ -1,38 +1,14 @@
-/**
- * Apple-style Spring Animation Presets and Variants
- * 
- * Core Philosophy: Apple Motion = Spring Physics + Damped Settling + Physical Inertia
- * - Natural onset (not sudden start)
- * - Elegant settling (not abrupt stop)
- * - Physical weight (like real objects moving)
- */
+
 
 import type { Transition, Variants } from "framer-motion"
 
-// ============================================
-// Spring Presets
-// ============================================
-
 export const springPresets = {
-  /** Standard interaction - buttons, card hover (~200ms) */
   snappy: { type: "spring", stiffness: 400, damping: 30 } as Transition,
-  
-  /** Gentle transition - panels, modals (~350ms) */
   gentle: { type: "spring", stiffness: 300, damping: 35 } as Transition,
-  
-  /** Elastic emphasis - success feedback, key elements (~300ms) */
   bouncy: { type: "spring", stiffness: 500, damping: 25, mass: 0.8 } as Transition,
-  
-  /** Elegant settling - page transitions, large elements (~500ms) */
   smooth: { type: "spring", stiffness: 200, damping: 40, mass: 1.2 } as Transition,
-  
-  /** Inertial slide - lists, carousels */
   inertia: { type: "spring", stiffness: 150, damping: 20, mass: 0.5 } as Transition,
 }
-
-// ============================================
-// Apple Easing Curves (for non-Spring scenarios)
-// ============================================
 
 export const appleEase = {
   /** iOS standard curve */
@@ -45,9 +21,6 @@ export const appleEase = {
   decelerate: [0, 0, 0.2, 1] as const,
 }
 
-// ============================================
-// Animation Variants
-// ============================================
 
 /** Fade in with upward movement (Spring) */
 export const fadeInUp: Variants = {

@@ -25,7 +25,7 @@ import { Plus, Calendar, Table as TableIcon, Pencil, Trash2, Loader2 } from 'luc
 import { useToast } from '@/hooks/use-toast';
 import api from '@/api/client';
 
-// ── Constants ──────────────────────────────────────────────────────────────────
+// Constants 
 const JOURS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'] as const;
 type Jour = typeof JOURS[number];
 
@@ -39,7 +39,7 @@ const PALETTE = [
   '#8b5cf6', '#ec4899', '#14b8a6', '#f97316',
 ];
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+//  Types 
 interface Filiere   { id: number; nom: string; code: string; color?: string }
 interface Groupe    { id: number; nom: string; filiere_id: number; filiere?: Filiere; stagiaires_count?: number }
 interface Module    { id: number; nom: string; code: string; filiere_id: number; filiere?: Filiere }
@@ -57,7 +57,7 @@ interface Creneau   {
   formateur?: Formateur;
 }
 
-// ── API helpers ────────────────────────────────────────────────────────────────
+// API helpers 
 const creneauxApi = {
   list:   (groupeId: number)             => api.get(`/emplois-du-temps?groupe_id=${groupeId}`),
   create: (data: object)                 => api.post('/emplois-du-temps', data),
@@ -65,7 +65,7 @@ const creneauxApi = {
   delete: (id: number)                   => api.delete(`/emplois-du-temps/${id}`),
 };
 
-// ── Component ──────────────────────────────────────────────────────────────────
+// Component 
 export default function AdminEmploisDuTemps() {
   const { toast } = useToast();
 
@@ -95,7 +95,7 @@ export default function AdminEmploisDuTemps() {
   };
   const [formData, setFormData] = useState(emptyForm);
 
-  // ── Load reference data once ─────────────────────────────────────────────────
+  //  Load reference data once
   useEffect(() => {
     const fetchRef = async () => {
       setRefLoading(true);
@@ -127,7 +127,7 @@ export default function AdminEmploisDuTemps() {
     fetchRef();
   }, []);
 
-  // ── Load schedule when group changes ─────────────────────────────────────────
+  //  Load schedule when group changes
   useEffect(() => {
     if (!selectedGroupeId) return;
     const fetchSchedule = async () => {
@@ -153,7 +153,7 @@ export default function AdminEmploisDuTemps() {
     fetchSchedule();
   }, [selectedGroupeId]);
 
-  // ── Helpers ──────────────────────────────────────────────────────────────────
+  //  Helpers 
   const selectedGroupe = groupes.find((g) => g.id === selectedGroupeId);
 
   const filiereColor = (filiereId?: number): string => {
@@ -164,7 +164,7 @@ export default function AdminEmploisDuTemps() {
   const getSlotCreneau = (jour: Jour, heure: string) =>
     creneaux.find((c) => c.jour === jour && c.heure_debut === heure);
 
-  // ── Modal handlers ────────────────────────────────────────────────────────────
+  //  Modal handlers 
   const openAdd = () => {
     setEditing(null);
     setFormData(emptyForm);
@@ -237,7 +237,7 @@ export default function AdminEmploisDuTemps() {
     }
   };
 
-  // ── Grid view ─────────────────────────────────────────────────────────────────
+  //  Grid view 
   const renderGrid = () => (
     <div className="overflow-x-auto">
       <div className="min-w-[1100px]">
@@ -306,7 +306,7 @@ export default function AdminEmploisDuTemps() {
     </div>
   );
 
-  // ── Table view ────────────────────────────────────────────────────────────────
+  //  Table view 
   const renderTable = () => (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -370,7 +370,7 @@ export default function AdminEmploisDuTemps() {
     </div>
   );
 
-  // ── Render ────────────────────────────────────────────────────────────────────
+  //  Render 
   return (
     <AdminLayout currentPath={ROUTE_PATHS.ADMIN_EMPLOIS_DU_TEMPS}>
       <div className="space-y-6">

@@ -35,7 +35,7 @@ class ModuleController extends Controller
         return response()->json($query->orderBy('annee')->orderBy('nom')->get());
     }
 
-    // GET /api/filieres/{filiere}/structure  — structured by year and option
+    // GET /api/filieres/{filiere}/structure  
     public function structureByFiliere(Request $request, int $filiereId): JsonResponse
     {
         $modules = Module::where('filiere_id', $filiereId)

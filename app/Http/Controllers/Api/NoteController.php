@@ -56,8 +56,6 @@ class NoteController extends Controller
         if (! $stagiaire->isStagiaire()) {
             return response()->json(['message' => "L'utilisateur ciblé n'est pas un stagiaire."], 422);
         }
-
-        // Scoping for formateurs
         $auth = $request->user();
         $module = Module::findOrFail($data['module_id']);
 
@@ -67,7 +65,7 @@ class NoteController extends Controller
 
         $data['formateur_id'] = $auth->isFormateur() ? $auth->id : ($request->input('formateur_id', $auth->id));
         $data['coefficient']  = $module->coefficient;
-        $data['groupe_id']    = $stagiaire->groupe_id; // auto-populate from stagiaire
+        $data['groupe_id']    = $stagiaire->groupe_id; 
 
         $note = Note::create($data);
 
@@ -136,7 +134,7 @@ class NoteController extends Controller
         return response()->json(['message' => 'Note supprimée.']);
     }
 
-    // GET /api/notes/bulletin  — full transcript for one stagiaire
+    // GET /api/notes/bulletin  
     public function bulletin(Request $request): JsonResponse
     {
         $request->validate(['stagiaire_id' => 'required|exists:users,id']);
